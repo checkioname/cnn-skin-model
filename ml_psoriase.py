@@ -164,7 +164,7 @@ test_5 = [64,32,16,32,8]
 tests = [test_1,test_2,test_3,test_4,test_5]
 
 class NeuralNetwork(nn.Module):
-    def __init__(self,test):
+    def __init__(self,test,dropout_prob):
         super().__init__()
         self.conv_layers = nn.Sequential(
                     nn.Conv2d(3, test[0], kernel_size=3, padding=0),
@@ -182,6 +182,9 @@ class NeuralNetwork(nn.Module):
                     nn.ReLU(),
                     nn.MaxPool2d(kernel_size=3, stride=1)
         )
+
+        self.dropout = nn.Dropout(p=dropout_prob)
+
         self.flatten = Flatten()
         flattened_size = self._get_flattened_size(input_size)
 
@@ -195,6 +198,7 @@ class NeuralNetwork(nn.Module):
         
     def forward(self, x):
         x = self.conv_layers(x)
+        x = self.dropout(x)  # Aplicar dropout após as camadas convolucionais
         x = self.fc_layers(x)
         return x
 
@@ -304,15 +308,19 @@ class_to_idx = {"psoriasis": 1, "melanome": 0}
 for i,obj in enumerate(tests):
     lst = len(os.listdir('runs/'))
     writer = SummaryWriter(f"runs/ml-model-test-{lst}")
-    model = NeuralNetwork(tests[i]).to(device)
+    model = NeuralNetwork(tests[i],dropout_prob=0.5).to(device)
 
     loss_fn = nn.BCELoss()
     optimizer = torch.optim.SGD(model.parameters(),lr=1e-3)
+    
+    # Crie um objeto StepLR para ajustar a taxa de aprendizado
+    scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 
     print(f"Teste - {i+1}")
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train(train_loader, model, loss_fn, optimizer, class_to_idx)
+        scheduler.step()
         test(test_loader, model, loss_fn, class_to_idx)
     print("Done!")
     writer.flush()
