@@ -1,0 +1,24 @@
+Configuraçao das camadas convolucionais:
+test_1 = [224,128,64,32,16]
+        self.conv_layers = nn.Sequential(
+                    nn.Conv2d(3, test[0], kernel_size=3, padding=0),
+                    nn.ReLU(),
+                    nn.MaxPool2d(kernel_size=2, stride=2),
+                    nn.Conv2d(test[0], test[1], kernel_size=3, padding=0),
+                    nn.ReLU(),
+                    nn.MaxPool2d(kernel_size=2, stride=2),
+                    nn.Conv2d(test[1], test[2], kernel_size=3, padding=0),
+                    nn.MaxPool2d(kernel_size=2, stride=2),
+                    nn.Conv2d(test[2], test[3], kernel_size=3, padding=0),
+                    nn.ReLU(),
+                    nn.MaxPool2d(kernel_size=2, stride=2),
+                    nn.Conv2d(test[3], test[4], kernel_size=3, padding=0),
+                    nn.ReLU(),
+                    nn.MaxPool2d(kernel_size=3, stride=1)
+        )
+
+Tambem usei dropout nesse modelo, e momentum (O "momentum" é um hiperparâmetro usado em algoritmos de otimização, como o SGD (Stochastic Gradient Descent) e o seu derivado, o SGD com Momentum. O momentum ajuda a acelerar o treinamento e a estabilizá-lo)
+Diferente dos treinamentos anteriores usei uma taxa de aprendizado media (antes usava uma taxa baixa) e a perda foi bem menor
+
+Proximo teste sera com o mesmo modelo porem implementando regularizaçao
+
