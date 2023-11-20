@@ -1,0 +1,8 @@
+Modelo rodou com as seguintes configurações
+ momentum = 0.9
+    weight_decay = 0.001
+    loss_fn = nn.BCELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=momentum)
+
+sem nenhum scheduler para diminuir a taxa de aprendizado
+a arquitetura foi mantida a mesma que as anteriores
