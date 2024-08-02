@@ -23,7 +23,7 @@ class OneDriveCrawler:
         )
 
         # Obtém o código de autorização
-        auth_code_url = self.auth_provider.get_auth_url()Attempting
+        auth_code_url = self.auth_provider.get_auth_url()
         code_receiver = GetAuthCodeServer(auth_code_url, self.redirect_uri)
         code = code_receiver.get_auth_code()
 
