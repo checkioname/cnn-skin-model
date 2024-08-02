@@ -3,5 +3,16 @@ sys.path.append('/home/king/Documents/PsoriasisEngineering/application')
 
 from utils.remove_background import BackgroundRemover
 
+path = "infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093312541.jpg"
+
+
+
+## IMAGENS DE PERTO
+p1 ="infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093333119.jpg"
+p2 = "infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093334632.jpg"
+p3 = "infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093346411.jpg"
+p4 = "infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093355724.jpg"
+p5= "infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093352604.jpg"
+
 backgroundRemover = BackgroundRemover()
-backgroundRemover.transform_image("application/dataset/data/acral_melanoma2.jpg")
+backgroundRemover.transform_image(p5)
