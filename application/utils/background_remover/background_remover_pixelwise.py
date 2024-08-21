@@ -21,7 +21,7 @@ class pixelwise_remover():
         msk = cv2.inRange(image_hsv, lwr, upr)
 
         # Set all pixels within the blue range to black in the original image
-        image_hsv[msk > 0] = [0, 0, 0]
+        image_hsv[msk > 0] = [0, 0, 0] 
 
         # Save or display the resulting image
         # cv2.imshow('Transformed Image', image_hsv)
