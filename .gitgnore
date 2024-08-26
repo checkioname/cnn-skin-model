@@ -267,3 +267,4 @@ pyrightconfig.json
 
 test_out/
 runs/
+infrastructure/db/
