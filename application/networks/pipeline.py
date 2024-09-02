@@ -3,6 +3,7 @@
 
 import sys
 import os
+from torch.utils.data import DataLoader, Subset
 
 from domain.custom_network import NeuralNetwork
 
@@ -14,14 +15,9 @@ import torch
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
-
-
-
 from application.preprocessing.custom_dataset import CustomDataset
 
 
-
-#Pytorch possibilida o usa facil de gpu
 device = (
     "cuda"
     if torch.cuda.is_available()
@@ -30,20 +26,12 @@ device = (
     else "cpu"
 )
 
-img_dir = 'data/'
-
-train_dataset = CustomDataset(csv_file='application/dataset/train_set.csv', img_dir=img_dir, transform=transforms,target_transform=None )
-test_dataset = CustomDataset(csv_file='application/dataset/test_set.csv',img_dir=img_dir, transform=transforms)
-val_dataset = CustomDataset(csv_file='application/dataset/val_set.csv',img_dir=img_dir, transform=transforms)
-
 batch_size = 32
 
-train_loader  = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True)    
+########################
+# type of grid search  #
+########################
 
-
-# definindo o modelo
 test_1 = [224,128,64,32,16]
 test_2 = [128,64,32,16,8]
 test_3 = [64,32,16,8,4]
@@ -64,6 +52,7 @@ tests = [test_6,
          test_11]
 
 
+# Using to convert dataset labels names do numbers
 class_to_idx = {"psoriasis": 0, "melanome": 1}
 
 
@@ -82,44 +71,71 @@ def testing_entries(model, dataloader):
 
 training = training.Training()
 
-# Exemplo de uso
-class_to_idx = {"psoriasis": 1, "melanome": 0}
-
 # Definir as funções de perda e otimizadores
 epochs = int(input("Digite o número de épocas: "))
 
 
+train_transforms = transforms.Compose([
+     transforms.RandomRotation(50,fill=1),
+     transforms.RandomResizedCrop((224,224)),
+     transforms.Resize((224,224)),
+     transforms.RandomHorizontalFlip(p=0.5),
+     transforms.RandomVerticalFlip(p=0.5),
+     transforms.ToTensor(),  # Converte para tensor
+ ])
+
+test_transforms = transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor(),
+])
+
 # Crie um objeto StepLR para ajustar a taxa de aprendizado
 #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
-
+num_folds = 3
 for i, layer_config in enumerate(tests):
     print('rodando camadas: ',layer_config)
 
     lst = len(os.listdir('application/rag/content/runs'))
     writer = SummaryWriter(f"runs/ml-model-test-{lst}")
 
-    modelSetup = Hiperparametros.SetupModel()
-    model, loss_fn, optimizer, scheduler = modelSetup.setup_model(layer_config,device)
 
-    writer.add_graph(model, torch.randn(batch_size, 3, 224, 224))
-    # Registre os detalhes no TensorBoard
-    writer.add_text("Model Configuration", str(model))
-    writer.add_text("Scheduler", str(scheduler))
-    writer.add_text("Optimizer Configuration", str(optimizer))
-    writer.add_text("Loss Function", str(loss_fn))
 
-    print(f"Teste - {i+1}")
-    for t in range(epochs):
-        print(f"Epoch {t+1}\n-------------------------------")
-        training.train(model, train_loader, writer, loss_fn, optimizer, class_to_idx, device, t)
-        training.test(model, writer, test_loader, loss_fn, class_to_idx, t, device)
-        scheduler.step()
+    # K-fold training
+    for fold in range(num_folds):    
+        train_index = torch.load(f'/home/king/Documents/PsoriasisEngineering/application/rag/content/index/train_index_fold{fold}.pt')
+        val_index = torch.load(f'/home/king/Documents/PsoriasisEngineering/application/rag/content/index/val_index_fold{fold}.pt')
 
-    print("Done!")
-    writer.flush()
-    writer.close()
-    torch.save({
-            'epoch': t,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            }, f'runs/ml-model-test-{lst}/model.pt')
+        custom_dataset = CustomDataset(csv_file='/home/king/Documents/PsoriasisEngineering/image_labels.csv', transform=train_transforms, target_transform=None)
+
+        #conjunto de treino e teste
+        train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True)
+        test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=True)
+
+        
+        # Setup model
+        modelSetup = Hiperparametros.SetupModel()
+        model, loss_fn, optimizer, scheduler = modelSetup.setup_model(layer_config,device)
+
+        writer.add_graph(model, torch.randn(batch_size, 3, 224, 224))
+        # Registre os detalhes no TensorBoard
+        writer.add_text("Model Configuration", str(model))
+        writer.add_text("Scheduler", str(scheduler))
+        writer.add_text("Optimizer Configuration", str(optimizer))
+        writer.add_text("Loss Function", str(loss_fn))
+
+
+        print(f"Teste - {i+1}")
+        for t in range(epochs):
+            print(f"Epoch {t+1}\n-------------------------------")
+            training.train(model, train_loader, writer, loss_fn, optimizer, device, t)
+            training.test(model, writer, test_loader, loss_fn, t, device)
+            scheduler.step()
+
+        print(f"Done fold - {fold}!")
+        writer.flush()
+        writer.close()
+        torch.save({
+                'epoch': t,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                }, f'runs/ml-model-test-{lst}/model.pt')

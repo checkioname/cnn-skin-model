@@ -36,7 +36,7 @@ def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
 
 
 # Criando KFold cross-validator
-def generate_stratified_dataset(self, num_folds, transforms, csv_path) -> None:
+def generate_stratified_dataset(num_folds, csv_path, transforms=None) -> None:
     kf = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=42)
 
     # Criando DataLoader para o conjunto de treinamento
@@ -51,3 +51,6 @@ def generate_stratified_dataset(self, num_folds, transforms, csv_path) -> None:
         torch.save(val_index, os.path.join(f'application/rag/content/index/val_index_fold{fold}.pt'))
 
         print(train_index, val_index)
+
+
+## generate_stratified_dataset(3, 'path_csv')

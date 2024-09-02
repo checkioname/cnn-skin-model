@@ -3,12 +3,14 @@ import torch
 
 class Training():
 
+    class_to_idx = {"psoriasis": 1, "dermatite": 0}
+
     # Função de treinamento
-    def train(self, model, dataloader, writer, loss_fn, optimizer, class_to_idx, device,epoch):
+    def train(self, model, dataloader, writer, loss_fn, optimizer, device,epoch):
         size = len(dataloader.dataset)
         model.train()
         for batch, (X, y) in enumerate(dataloader):
-            batch_labels_numeric = [class_to_idx[label] for label in y]
+            batch_labels_numeric = [self.class_to_idx[label] for label in y]
             y = torch.tensor(batch_labels_numeric, dtype=torch.float32).to(device)
             X, y = X.to(device), y.to(device)
 
@@ -27,14 +29,14 @@ class Training():
                 print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]")
 
     # Função de teste
-    def test(self, model, writer,  data, loss_fn, class_to_idx, epoch, device):
+    def test(self, model, writer,  data, loss_fn, epoch, device):
         size = len(data.dataset)
         num_batches = len(data)
         model.eval()
         test_loss, correct = 0, 0
         with torch.no_grad():
             for X, y in data:
-                batch_labels_numeric = [class_to_idx[label] for label in y]
+                batch_labels_numeric = [self.class_to_idx[label] for label in y]
                 y = torch.tensor(batch_labels_numeric, dtype=torch.float32).to(device)
                 X, y = X.to(device), y.to(device)
                 pred = model(X)
