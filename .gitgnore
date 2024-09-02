@@ -264,7 +264,17 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/database,images,data,python
+## Other stuff 
 
+*.pt
+*.pth
+.vscode
+
+## Model logs
 test_out/
 runs/
+application/rag/content/runs/
+
+## Model images/db 
 infrastructure/db/
+
