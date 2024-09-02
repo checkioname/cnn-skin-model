@@ -265,6 +265,9 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/database,images,data,python
 
+
+
+.vscode
 test_out/
 runs/
 infrastructure/db/
