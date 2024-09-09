@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: psoriasis-model-pod
+  labels:
+    app: psoriasis-model
+spec:
+  containers:
+    - name: python-app-container
+      image: <seu-registro>/python-app:latest  # Substitua pelo seu repositório de imagem
+      ports:
+        - containerPort: 8000
+      command: ["tail", "-f", "/dev/null"]  # Mantém o container ativo sem executar a aplicação
+  restartPolicy: Always
