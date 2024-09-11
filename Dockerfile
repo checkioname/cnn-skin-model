@@ -10,10 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Define a variável de ambiente para o Python não gerar arquivos .pyc
+ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-CMD ["python", "-m application.networks.pipeline"]
+CMD ["python", "-m application.networks.pipeline -e 2"]
 

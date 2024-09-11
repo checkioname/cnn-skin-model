@@ -36,11 +36,11 @@ class PixelWiseRemover():
 
         # print(Image.fromarray(image_hsv))
 
-bg_remover = pixelwise_remover()
+# bg_remover = PixelWiseRemover()
 
-bg_remover.rgb_to_hsv("infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093355069.jpg")
-# Y: [10, 255]• Cr: [135, 180]• Cb: [85, 135]
+# bg_remover.rgb_to_hsv("infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA ROSA  (20220714093119461) 20220714093355069.jpg")
+# # Y: [10, 255]• Cr: [135, 180]• Cb: [85, 135]
 
-bg_remover = PixelWiseRemover()
+# bg_remover = PixelWiseRemover()
 
-bg_remover.rgb_to_hsv("/home/king/Documents/PsoriasisEngineering/infrastructure/db/MARIA ROSA DE JESUS SOUSA - 607682/MARIA ROSA DE JESUS SOUSA - 607682.jpg")
+# bg_remover.rgb_to_hsv("/home/king/Documents/PsoriasisEngineering/infrastructure/db/MARIA ROSA DE JESUS SOUSA - 607682/MARIA ROSA DE JESUS SOUSA - 607682.jpg")
