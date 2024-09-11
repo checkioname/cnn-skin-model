@@ -1,6 +1,7 @@
 import os
 import csv
 import torch
+import argparse
 
 from sklearn.model_selection import StratifiedKFold
 from application.preprocessing.custom_dataset import CustomDataset
@@ -9,6 +10,11 @@ from application.preprocessing.custom_dataset import CustomDataset
 # generate_csv_from_dir('/home/king/Documents/PsoriasisEngineering/infrastructure/db')
 # Run on the terminal like
 # python -m application.utils.utils
+
+
+
+
+
 
 def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
     # Lista todas as subpastas dentro do diretório raiz (db)
@@ -36,7 +42,7 @@ def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
 
 
 # Criando KFold cross-validator
-def generate_stratified_dataset(self, num_folds, transforms, csv_path) -> None:
+def generate_stratified_dataset(num_folds, transforms, csv_path) -> None:
     kf = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=42)
 
     # Criando DataLoader para o conjunto de treinamento
@@ -51,3 +57,17 @@ def generate_stratified_dataset(self, num_folds, transforms, csv_path) -> None:
         torch.save(val_index, os.path.join(f'application/rag/content/index/val_index_fold{fold}.pt'))
 
         print(train_index, val_index)
+
+
+# Argumentos
+parser = argparse.ArgumentParser()
+parser.add_argument("-f", "--func", required=True, help="Which function to run: \n 1- generate csv from data \n 2 - generate stratified dataset", type=int)
+args = parser.parse_args()
+
+if (args.func == 1):
+    path = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
+    print(path)
+    root_path = os.path.join('infrastructure/db')
+    generate_csv_from_dir(root_path, output_csv='image_labels.csv')
+else:
+    print('bye')

@@ -20,6 +20,9 @@ class CustomDataset(Dataset):
         self.img_dir = img_dir
         self.transform = transform
         self.target_transform = target_transform
+        self.labels = [str(label) for label in self.data['labels']]
+
+
 
     def __len__(self):
         return len(self.data)

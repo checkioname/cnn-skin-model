@@ -67,16 +67,13 @@ def testing_entries(model, dataloader):
         break
 
 
-training = training.Training()
+batch_size = 32
+epochs = args.epochs
+class_to_idx = {"psoriasis": 0, "dermatite": 1}
+
 
 dataset = ImageProcessing()
-
-train_set, test_set = dataset.pre_processing()
-
-# Definir as funções de perda e otimizadores
-epochs = args.epoch
-batch_size = 32
-class_to_idx = {"psoriasis": 0, "dermatite": 1}
+train_loader, test_loader = dataset.pre_processing(4, batch_size)
 
 
 # Crie um objeto StepLR para ajustar a taxa de aprendizado
@@ -90,6 +87,7 @@ for i, layer_config in enumerate(tests):
 
     modelSetup = Hiperparametros.SetupModel()
     model, loss_fn, optimizer, scheduler = modelSetup.setup_model(layer_config,device)
+    training = training.Training(train_loader,model, writer)
 
     writer.add_graph(model, torch.randn(batch_size, 3, 224, 224))
     # Registre os detalhes no TensorBoard
@@ -101,7 +99,7 @@ for i, layer_config in enumerate(tests):
     print(f"Teste - {i+1}")
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
-        training.train(model, train_loader, writer, loss_fn, optimizer, class_to_idx, device, t)
+        training.train(loss_fn, optimizer, class_to_idx, device, t)
         training.test(model, writer, test_loader, loss_fn, class_to_idx, t, device)
         scheduler.step()
 
