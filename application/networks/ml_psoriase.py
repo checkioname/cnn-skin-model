@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import StepLR
 #from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from application.networks.custom_network import NeuralNetwork
-from application.utils.training import Training
+from training import Training
 
 #Pytorch possibilida o usa facil de gpu
 device = (

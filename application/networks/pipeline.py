@@ -3,7 +3,9 @@
 
 import sys
 import os
+import argparse
 
+from application.preprocessing.pre_processing import ImageProcessing
 from domain.custom_network import NeuralNetwork
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -15,10 +17,13 @@ from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
 
-
-
 from application.preprocessing.custom_dataset import CustomDataset
 
+
+# Argumentos
+parser = argparse.ArgumentParser()
+parser.add_argument("-e", "--epochs", required=True, help="number of epochs on training", type=int)
+args = parser.parse_args()
 
 
 #Pytorch possibilida o usa facil de gpu
@@ -29,18 +34,6 @@ device = (
     if torch.backends.mps.is_available()
     else "cpu"
 )
-
-img_dir = 'data/'
-
-train_dataset = CustomDataset(csv_file='application/dataset/train_set.csv', img_dir=img_dir, transform=transforms,target_transform=None )
-test_dataset = CustomDataset(csv_file='application/dataset/test_set.csv',img_dir=img_dir, transform=transforms)
-val_dataset = CustomDataset(csv_file='application/dataset/val_set.csv',img_dir=img_dir, transform=transforms)
-
-batch_size = 32
-
-train_loader  = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True)    
 
 
 # definindo o modelo
@@ -56,18 +49,12 @@ test_9 = [32, 64, 64, 128, 128]
 test_10 = [32, 64, 64, 64, 128]    
 test_11 = [128, 128, 256, 256, 512] 
 
-tests = [test_6,
-         test_7,
-         test_8,
-         test_9,
-         test_10,
-         test_11]
+tests = [test_6]
 
-
-class_to_idx = {"psoriasis": 0, "melanome": 1}
 
 
 def testing_entries(model, dataloader):
+    class_to_idx = {"psoriasis": 0, "melanome": 1}
     model.train()
     for batch, (X, y) in enumerate(dataloader):
         batch_labels_numeric = [class_to_idx[label] for label in y]
@@ -82,11 +69,14 @@ def testing_entries(model, dataloader):
 
 training = training.Training()
 
-# Exemplo de uso
-class_to_idx = {"psoriasis": 1, "melanome": 0}
+dataset = ImageProcessing()
+
+train_set, test_set = dataset.pre_processing()
 
 # Definir as funções de perda e otimizadores
-epochs = int(input("Digite o número de épocas: "))
+epochs = args.epoch
+batch_size = 32
+class_to_idx = {"psoriasis": 0, "dermatite": 1}
 
 
 # Crie um objeto StepLR para ajustar a taxa de aprendizado
