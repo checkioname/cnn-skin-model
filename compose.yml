@@ -1,0 +1,17 @@
+services:
+  app:
+    #banco de dados precisa iniciar para o app rodar
+    image: lucas10sh/psoriasis-model
+    build: "./"
+    ports:
+      - "8080:8080"
+    container_name: cnn_container
+    restart: always
+
+    volumes:
+      - app:/data/runs/
+
+
+volumes:
+  app:
+    driver: local

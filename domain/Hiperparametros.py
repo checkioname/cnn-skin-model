@@ -8,7 +8,7 @@ from domain.custom_network import NeuralNetwork
 
 class SetupModel():
     
-    def setup_model(self, layers_config, device, batch_size=50):
+    def setup_model(self, layers_config, device):
         model = NeuralNetwork(layers_config, dropout_prob=0.1).to(device)
         
         learning_rate = 0.01
