@@ -19,9 +19,16 @@ p5= "infraestructure/db/MARIA ROSA DE JESUS SOUSA - 607682/DE JESUS SOUSA, MARIA
 ## Preprocessar um conjunto de dados de modo paralelo
 
 class ImageProcessing():
-    def __init__(self, path, transforms):
-        self.path = path 
-        self.transforms = transforms
+    def __init__(self):
+        self.transforms = transforms = transforms.Compose([
+        transforms.RandomRotation(50,fill=1),
+        transforms.RandomResizedCrop((224,224)),
+        transforms.Resize((224,224)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.ToTensor(),  # Converte para tensor
+    ])
+
         
 
     def pre_processing(self, fold, batch_size):
