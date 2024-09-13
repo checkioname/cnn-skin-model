@@ -113,7 +113,7 @@ for i, layer_config in enumerate(tests):
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         training.train(loss_fn, optimizer, class_to_idx, device, t)
-        training.test(model, writer, test_loader, loss_fn, class_to_idx, t, device)
+        training.test(loss_fn, class_to_idx, t, device)
         scheduler.step()
 
     print("Done!")
