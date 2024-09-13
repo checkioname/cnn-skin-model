@@ -57,17 +57,3 @@ def generate_stratified_dataset(num_folds, transforms, csv_path) -> None:
         torch.save(val_index, os.path.join(f'application/rag/content/index/val_index_fold{fold}.pt'))
 
         print(train_index, val_index)
-
-
-# Argumentos
-parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--func", required=True, help="Which function to run: \n 1- generate csv from data \n 2 - generate stratified dataset", type=int)
-args = parser.parse_args()
-
-if (args.func == 1):
-    path = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
-    print(path)
-    root_path = os.path.join('infrastructure/db')
-    generate_csv_from_dir(root_path, output_csv='image_labels.csv')
-else:
-    print('bye')
