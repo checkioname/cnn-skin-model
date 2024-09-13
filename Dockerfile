@@ -16,5 +16,9 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
+
+
+
 CMD ["python", "-m application.networks.pipeline -e 2"]
 
+CMD ["python", "-m application.utils.utils -f 1"]

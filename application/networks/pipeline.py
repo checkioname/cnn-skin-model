@@ -6,6 +6,7 @@ import os
 import argparse
 
 from application.preprocessing.pre_processing import ImageProcessing
+from application.utils.utils import generate_csv_from_dir
 from domain.custom_network import NeuralNetwork
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -23,7 +24,19 @@ from application.preprocessing.custom_dataset import CustomDataset
 # Argumentos
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--epochs", required=True, help="number of epochs on training", type=int)
+parser.add_argument("-f", "--func", required=False, help="Which function to run: \n 1- generate csv from data \n 2 - generate stratified dataset", type=int)
+
+
 args = parser.parse_args()
+args = parser.parse_args()
+
+if (args.func == 1):
+    path = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
+    print(path)
+    root_path = os.path.join('infrastructure/db')
+    generate_csv_from_dir(root_path, output_csv='image_labels.csv')
+else:
+    print('Not generating csv dataset')
 
 
 #Pytorch possibilida o usa facil de gpu
