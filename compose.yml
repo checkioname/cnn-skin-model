@@ -9,7 +9,7 @@ services:
     restart: always
 
     volumes:
-      - app:/data/runs/
+      - ./ml_psoriasis_log:/logs
 
 
 volumes:

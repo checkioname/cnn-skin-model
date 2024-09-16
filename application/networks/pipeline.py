@@ -95,7 +95,7 @@ for i, layer_config in enumerate(tests):
     print('rodando camadas: ',layer_config)
 
     lst = len(os.listdir('application/rag/content/runs'))
-    writer = SummaryWriter(f"runs/ml-model-test-{lst}")
+    writer = SummaryWriter(f"logs/ml-model-test-{lst}")
 
     modelSetup = Hiperparametros.SetupModel()
     model, loss_fn, optimizer, scheduler = modelSetup.setup_model(layer_config,device)
@@ -122,4 +122,4 @@ for i, layer_config in enumerate(tests):
             'epoch': t,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            }, f'runs/ml-model-test-{lst}/model.pt')
+            }, f'logs/ml-model-test-{lst}/model.pt')
