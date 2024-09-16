@@ -4,7 +4,9 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && mkdir -p /logs
+
+VOLUME /logs
 
 # Copia o restante do código para o container
 COPY . .
@@ -17,8 +19,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 
-
-
-CMD ["python", "-m application.networks.pipeline -e 2"]
-
-CMD ["python", "-m application.utils.utils -f 1"]
+CMD ["python", "-m application.networks.pipeline -e 4 -f 1"]
