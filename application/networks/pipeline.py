@@ -90,13 +90,13 @@ train_loader, test_loader = dataset.pre_processing(4, batch_size)
 
 # Crie um objeto StepLR para ajustar a taxa de aprendizado
 #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
-
 for i, layer_config in enumerate(tests):
     print('rodando camadas: ',layer_config)
+    
 
     lst = len(os.listdir('application/rag/content/runs'))
-    writer = SummaryWriter(f"logs/ml-model-test-{lst}")
-
+    save_path = f"/runs/ml-model-test-{lst}"
+    writer = SummaryWriter(save_path)
     modelSetup = Hiperparametros.SetupModel()
     model, loss_fn, optimizer, scheduler = modelSetup.setup_model(layer_config,device)
     training = training.Training(train_loader,model, writer)
@@ -118,8 +118,11 @@ for i, layer_config in enumerate(tests):
     print("Done!")
     writer.flush()
     writer.close()
+
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
     torch.save({
             'epoch': t,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            }, f'logs/ml-model-test-{lst}/model.pt')
+            }, save_path + '/' + 'model.pt')

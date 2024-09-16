@@ -4,7 +4,16 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt && mkdir -p /logs
+
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libopencv-dev \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r requirements.txt \
+    && mkdir -p /logs
 
 VOLUME /logs
 
@@ -18,5 +27,4 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-
-CMD ["python", "-m application.networks.pipeline -e 4 -f 1"]
+CMD ["python", "-m", "application.networks.pipeline", "-e", "4", "-f", "1"]

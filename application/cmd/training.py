@@ -21,8 +21,6 @@ class Training():
             pred = self.model(X)
             pred = pred.squeeze(1)
 
-            print("VALOR PREDITO: ",pred)
-            print("VALOR labels: ",y)
             loss = loss_fn(pred, y)
             self.writer.add_scalar("Loss/train", loss, epoch)
             loss.backward()

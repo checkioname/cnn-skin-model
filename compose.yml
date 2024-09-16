@@ -6,10 +6,11 @@ services:
     ports:
       - "8080:8080"
     container_name: cnn_container
-    restart: always
+    restart: on-failure
 
     volumes:
-      - ./ml_psoriasis_log:/logs
+      - ./model_logs:/runs
+    command: python -m application.networks.pipeline -e 4 -f 1
 
 
 volumes:
