@@ -28,7 +28,6 @@ parser.add_argument("-f", "--func", required=False, help="Which function to run:
 
 
 args = parser.parse_args()
-args = parser.parse_args()
 
 if (args.func == 1):
     path = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
