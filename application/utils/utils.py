@@ -57,3 +57,18 @@ def generate_stratified_dataset(num_folds, transforms, csv_path) -> None:
         torch.save(val_index, os.path.join(f'application/rag/content/index/val_index_fold{fold}.pt'))
 
         print(train_index, val_index)
+
+
+
+def testing_entries(model, dataloader):
+    class_to_idx = {"psoriasis": 0, "melanome": 1}
+    model.train()
+    for batch, (X, y) in enumerate(dataloader):
+        batch_labels_numeric = [class_to_idx[label] for label in y]
+        batch_labels_tensor = torch.tensor(batch_labels_numeric).float()
+        # print(batch)
+        print('shape tensor imagem:',X.shape)
+        print('shape tensor y antes tranformacao:',len(y))
+        print('shape tensor label:',batch_labels_tensor.shape)
+        print(batch_labels_tensor)
+        break
