@@ -48,6 +48,9 @@ device = (
     else "cpu"
 )
 
+print("--"*50)
+print(f"UTILIZANDO O DEVICE - {device}")
+
 
 # definindo o modelo
 test_1 = [224,128,64,32,16]
@@ -63,21 +66,6 @@ test_10 = [32, 64, 64, 64, 128]
 test_11 = [128, 128, 256, 256, 512] 
 
 tests = [test_6]
-
-
-
-def testing_entries(model, dataloader):
-    class_to_idx = {"psoriasis": 0, "melanome": 1}
-    model.train()
-    for batch, (X, y) in enumerate(dataloader):
-        batch_labels_numeric = [class_to_idx[label] for label in y]
-        batch_labels_tensor = torch.tensor(batch_labels_numeric).float()
-        # print(batch)
-        print('shape tensor imagem:',X.shape)
-        print('shape tensor y antes tranformacao:',len(y))
-        print('shape tensor label:',batch_labels_tensor.shape)
-        print(batch_labels_tensor)
-        break
 
 
 batch_size = 32
@@ -96,7 +84,7 @@ for i, layer_config in enumerate(tests):
     
     time = time.time()
     lst = len(os.listdir('application/rag/content/runs'))
-    save_path = f"/runs/ml-model-test-{time}"
+    save_path = f"runs/ml-model-test-{time}"
     writer = SummaryWriter(save_path)
     modelSetup = Hiperparametros.SetupModel()
     model, loss_fn, optimizer, scheduler = modelSetup.setup_model(layer_config,device)
