@@ -4,6 +4,7 @@
 import sys
 import os
 import argparse
+import time
 
 from application.preprocessing.pre_processing import ImageProcessing
 from application.utils.utils import generate_csv_from_dir
@@ -93,9 +94,9 @@ train_loader, test_loader = dataset.pre_processing(4, batch_size)
 for i, layer_config in enumerate(tests):
     print('rodando camadas: ',layer_config)
     
-
+    time = time.time()
     lst = len(os.listdir('application/rag/content/runs'))
-    save_path = f"/runs/ml-model-test-{lst}"
+    save_path = f"/runs/ml-model-test-{time}"
     writer = SummaryWriter(save_path)
     modelSetup = Hiperparametros.SetupModel()
     model, loss_fn, optimizer, scheduler = modelSetup.setup_model(layer_config,device)
