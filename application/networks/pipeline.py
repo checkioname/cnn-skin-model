@@ -18,26 +18,7 @@ import torch
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
-
 from application.preprocessing.custom_dataset import CustomDataset
-
-
-# Argumentos
-parser = argparse.ArgumentParser()
-parser.add_argument("-e", "--epochs", required=True, help="number of epochs on training", type=int)
-parser.add_argument("-f", "--func", required=False, help="Which function to run: \n 1- generate csv from data \n 2 - generate stratified dataset", type=int)
-
-
-args = parser.parse_args()
-
-if (args.func == 1):
-    path = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
-    print(path)
-    root_path = os.path.join('infrastructure/db')
-    generate_csv_from_dir(root_path, output_csv='image_labels.csv')
-else:
-    print('Not generating csv dataset')
-
 
 #Pytorch possibilida o usa facil de gpu
 device = (
@@ -50,6 +31,24 @@ device = (
 
 print("--"*50)
 print(f"UTILIZANDO O DEVICE - {device}")
+
+# Argumentos
+parser = argparse.ArgumentParser()
+parser.add_argument("-e", "--epochs", required=True, help="number of epochs on training", type=int)
+parser.add_argument("-f", "--func", required=False, help="Which function to run: \n 1- generate csv from data \n 2 - generate stratified dataset", type=int)
+
+
+args = parser.parse_args()
+
+if (args.func == 1):
+    path = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
+    print(path)
+    root_path = os.path.join('infraestructure/db')
+    generate_csv_from_dir(root_path, output_csv='image_labels.csv')
+else:
+    print('Not generating csv dataset')
+
+
 
 
 # definindo o modelo

@@ -1,10 +1,10 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
 COPY requirements.txt .
 
-
+RUN pip install --upgrade pip
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libopencv-dev \
