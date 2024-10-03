@@ -31,13 +31,13 @@ class Training():
                 print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]")
 
     # Função de teste
-    def test(self, data, loss_fn, class_to_idx, epoch, device):
-        size = len(data.dataset)
-        num_batches = len(data)
+    def test(self, loss_fn, class_to_idx, epoch, device):
+        size = len(self.dataloader.dataset)
+        num_batches = len(self.dataloader)
         self.model.eval()
         test_loss, correct = 0, 0
         with torch.no_grad():
-            for X, y in data:
+            for X, y in self.dataloader:
                 batch_labels_numeric = [class_to_idx[label] for label in y]
                 y = torch.tensor(batch_labels_numeric, dtype=torch.float32).to(device)
                 X, y = X.to(device), y.to(device)
