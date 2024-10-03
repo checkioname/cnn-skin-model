@@ -2,6 +2,7 @@ import os
 import csv
 import torch
 import argparse
+from pandas import read_csv
 
 from sklearn.model_selection import StratifiedKFold
 from application.preprocessing.custom_dataset import CustomDataset
@@ -12,7 +13,7 @@ from application.preprocessing.custom_dataset import CustomDataset
 # python -m application.utils.utils
 
 
-def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
+def generate_csv_from_dir(root_path='/infrastructure/db/', output_csv='image_labels.csv'):
     # Lista todas as subpastas dentro do diretório raiz (db)
     subfolders = [f.name for f in os.scandir(root_path) if f.is_dir()]
 
@@ -32,7 +33,11 @@ def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
     with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["img_name", "labels"])
+        print(f"ESCREVENDO OS DADOS {data}")
         writer.writerows(data)
+
+    df = read_csv("image_labels.csv")
+    print(df.head())
 
     print(f"CSV salvo como {output_csv}")
 

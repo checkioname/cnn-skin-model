@@ -6,5 +6,5 @@
 
 
 /venv/lib/python3.12/site-packages/
-/application/rag/content/runs/
+/application/rag/content/runs/*
 *.zip

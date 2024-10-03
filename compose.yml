@@ -10,7 +10,7 @@ services:
 
     volumes:
       - ./model_logs:/runs
-      -  /infrastructure/db:/infrastructure/db
+      - ./infrastructure/db:/infrastructure/db
  
     command: python -m application.networks.pipeline -e 200 -f 1
 
