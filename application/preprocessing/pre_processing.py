@@ -29,9 +29,12 @@ class ImageProcessing():
         # generate_stratified_dataset(fold, self.transforms, "/home/king/Documents/PsoriasisEngineering/image_labels.csv")
 
         train_index = torch.load(os.path.join(f'application/rag/content/index/train_index_fold0.pt'))
-        val_index = torch.load(os.path.join(f'application/rag/content/index/train_index_fold0.pt'))
+        val_index = torch.load(os.path.join(f'application/rag/content/index/val_index_fold0.pt'))
+        
 
-        custom_dataset = CustomDataset(csv_file='image_labels.csv', img_dir='/content/sample_data/', transform=self.transforms, target_transform=None)
+        custom_dataset = CustomDataset(csv_file='image_labels.csv', transform=self.transforms, target_transform=None)
+        print(custom_dataset.data.head())
+
 
         #conjunto de treino e teste
         train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True)

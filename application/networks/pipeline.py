@@ -43,7 +43,7 @@ args = parser.parse_args()
 if (args.func == 1):
     path = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
     print(path)
-    root_path = os.path.join('infraestructure/db')
+    root_path = os.path.join('/infrastructure/db')
     generate_csv_from_dir(root_path, output_csv='image_labels.csv')
 else:
     print('Not generating csv dataset')
@@ -66,15 +66,12 @@ test_11 = [128, 128, 256, 256, 512]
 
 tests = [test_6]
 
-
 batch_size = 32
 epochs = args.epochs
 class_to_idx = {"psoriasis": 0, "dermatite": 1}
 
-
 dataset = ImageProcessing()
 train_loader, test_loader = dataset.pre_processing(4, batch_size)
-
 
 # Crie um objeto StepLR para ajustar a taxa de aprendizado
 #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
