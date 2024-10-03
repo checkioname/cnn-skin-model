@@ -15,19 +15,21 @@ from torchvision import transforms
 
 
 class CustomDataset(Dataset):
-    def __init__(self, csv_file, img_dir, transform=None, target_transform=None):
+    def __init__(self, csv_file, transform=None, target_transform=None):
         self.data = read_csv(csv_file)
-        self.img_dir = img_dir
         self.transform = transform
         self.target_transform = target_transform
+        self.labels = [str(label) for label in self.data['labels']]
+
+
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        image_path = self.data.loc[idx, 'img_name']
+        image_path = self.data.loc[int(idx), 'img_name']
         image = Image.open(image_path)
-        label = str(self.data.loc[idx, 'labels'])
+        label = str(self.data.loc[int(idx), 'labels'])
         
         if self.transform:
             image = self.transform(image)
