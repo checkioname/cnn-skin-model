@@ -20,14 +20,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
 from application.dataset.CustomDataset import CustomDataset
 
-#Pytorch possibilida o usa facil de gpu
-device = (
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-)
+# Pytorch possibilida o usa facil de gpu
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 print("--"*50)
 print(f"UTILIZANDO O DEVICE - {device}")
