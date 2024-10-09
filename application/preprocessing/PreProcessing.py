@@ -2,8 +2,8 @@ import sys
 import os
 import torch
 from torch.utils.data import DataLoader, Subset
-from application.preprocessing.custom_dataset import CustomDataset
-from application.utils.background_remover.background_remover_pixelwise import PixelWiseRemover
+from application.dataset.CustomDataset import CustomDataset
+from application.utils.background_remover.BackgroundRemoverPixelwise import PixelWiseRemover
 from torchvision import transforms
 
 from application.utils.utils import generate_stratified_dataset

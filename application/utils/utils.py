@@ -5,7 +5,7 @@ import argparse
 from pandas import read_csv
 
 from sklearn.model_selection import StratifiedKFold
-from application.preprocessing.custom_dataset import CustomDataset
+from application.dataset.CustomDataset import CustomDataset
 
 # Exemplo de uso:
 # generate_csv_from_dir('/home/king/Documents/PsoriasisEngineering/infrastructure/db')

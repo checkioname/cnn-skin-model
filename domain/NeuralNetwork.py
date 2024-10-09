@@ -13,7 +13,7 @@ class Flatten(nn.Module):
 class NeuralNetwork(nn.Module):
     def __init__(self, layers_config, dropout_prob=0.5):
         super(NeuralNetwork, self).__init__()
-        NeuralNetwork
+        
         # Tamanho da imagem de entrada
         self.input_size = (3, 224, 224)
         
