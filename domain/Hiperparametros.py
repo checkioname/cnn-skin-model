@@ -3,7 +3,7 @@ import os
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
 
-from domain.custom_network import NeuralNetwork
+from domain.NeuralNetwork import NeuralNetwork
 
 
 class SetupModel():

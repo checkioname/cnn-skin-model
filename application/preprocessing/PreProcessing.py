@@ -2,8 +2,8 @@ import sys
 import os
 import torch
 from torch.utils.data import DataLoader, Subset
-from application.preprocessing.custom_dataset import CustomDataset
-from application.utils.background_remover.background_remover_pixelwise import PixelWiseRemover
+from application.dataset.CustomDataset import CustomDataset
+from application.utils.background_remover.BackgroundRemoverPixelwise import PixelWiseRemover
 from torchvision import transforms
 
 from application.utils.utils import generate_stratified_dataset
@@ -28,9 +28,11 @@ class ImageProcessing():
         # processar pre processar cada uma das imagens com threads
         # generate_stratified_dataset(fold, self.transforms, "/home/king/Documents/PsoriasisEngineering/image_labels.csv")
 
-        train_index = torch.load(os.path.join(f'application/rag/content/index/train_index_fold0.pt'))
-        val_index = torch.load(os.path.join(f'application/rag/content/index/val_index_fold0.pt'))
-        
+        try:
+            train_index, val_index = self._load_idx(fold)
+        except FileNotFoundError as e:
+            print(f"Erro ao carregar os índices de treino/validação: {e}")
+            return None, None
 
         custom_dataset = CustomDataset(csv_file='image_labels.csv', transform=self.transforms, target_transform=None)
         print(custom_dataset.data.head())
@@ -41,3 +43,13 @@ class ImageProcessing():
         test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=True)
 
         return train_loader, test_loader
+
+    def _load_idx(self,fold):
+        base_path = 'application/rag/content/index'
+        train_index_path = os.path.join(base_path, f'train_index_fold{fold}.pt')
+        val_index_path = os.path.join(base_path, f'val_index_fold{fold}.pt')
+
+        train_index = torch.load(train_index_path)
+        val_index = torch.load(val_index_path)
+
+        return train_index, val_index
