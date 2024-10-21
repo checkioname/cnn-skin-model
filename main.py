@@ -6,6 +6,7 @@ import os
 import argparse
 import time
 
+from application.callbacks import EarlyStopping
 from application.preprocessing.PreProcessing import ImageProcessing
 from application.utils.utils import generate_csv_from_dir
 from domain.Hiperparametros import Hiperparameters
@@ -83,13 +84,16 @@ def train_model(epochs, device):
 
 def run_training(layer_config, dataset, epochs, device, kfolds):
     timestamp = time.time()
+    early_stopping = EarlyStopping(patience=3, min_delta=0.01)
+
+    
     for fold in range(kfolds):
         save_path = f"runs/ml-model-test-{timestamp}-fold{fold}"
         train_loader, test_loader = dataset.pre_processing(fold=fold, batch_size=32)
         model, loss_fn, optimizer, scheduler = Hiperparameters().setup_model(layer_config, device)
         writer = SummaryWriter(save_path)
         
-        training = Training(train_loader, test_loader, model, writer)
+        training = Training(train_loader, test_loader, model, writer, callbacks=[early_stopping])
 
         save_model_stats(model, writer, scheduler, optimizer, loss_fn)
         

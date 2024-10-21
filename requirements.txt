@@ -7,4 +7,5 @@ pillow
 numpy
 argparse
 opencv-python
+pytest
 
