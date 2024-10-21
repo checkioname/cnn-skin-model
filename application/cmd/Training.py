@@ -1,12 +1,14 @@
 import torch
 
 class Training():
-    def __init__(self, trainloader, testloader,model, writer) -> None:
+    def __init__(self, trainloader, testloader,model, writer, callbacks) -> None:
         self.trainloader = trainloader
         self.testloader = testloader
 
         self.model = model
         self.writer = writer
+
+        self.callbacks = callbacks or []
 
     # Função de treinamento
     def train(self, loss_fn, optimizer, device,epoch):
@@ -30,6 +32,11 @@ class Training():
             if batch % 100 == 0:
                 current = batch * len(X)
                 print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]")
+
+
+            for callback in self.callbacks: 
+                callback.on_epoch(epoch, self.model, loss)
+            
 
     # Função de teste
     def test(self, loss_fn, epoch, device):
