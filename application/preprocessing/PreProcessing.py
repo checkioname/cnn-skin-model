@@ -6,9 +6,6 @@ from application.dataset.CustomDataset import CustomDataset
 from application.utils.background_remover.BackgroundRemoverPixelwise import PixelWiseRemover
 from torchvision import transforms
 
-from application.utils.utils import generate_stratified_dataset
-
-
 class ImageProcessing():
     def __init__(self):
         self.transforms = transforms.Compose([
@@ -19,15 +16,10 @@ class ImageProcessing():
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),  # Converte para tensor
         ])
-
         
 
     def pre_processing(self, fold, batch_size):
         ## Gerar o dataset estratificado
-
-        # processar pre processar cada uma das imagens com threads
-        # generate_stratified_dataset(fold, self.transforms, "/home/king/Documents/PsoriasisEngineering/image_labels.csv")
-
         try:
             train_index, val_index = self._load_idx(fold)
         except FileNotFoundError as e:
@@ -39,8 +31,8 @@ class ImageProcessing():
 
 
         #conjunto de treino e teste
-        train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True, num_workers=1)
+        test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=True, num_workers=1)
 
         return train_loader, test_loader
 

@@ -13,12 +13,11 @@ from application.dataset.CustomDataset import CustomDataset
 # python -m application.utils.utils
 
 
-def generate_csv_from_dir(root_path='/infrastructure/db/', output_csv='image_labels.csv'):
+def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
     # Lista todas as subpastas dentro do diretório raiz (db)
     subfolders = [f.name for f in os.scandir(root_path) if f.is_dir()]
-
+    print(subfolders)
     data = []
-
     # Itera por cada subpasta e seus arquivos de imagem
     for subfolder in subfolders:
         subfolder_path = os.path.join(root_path, subfolder)
