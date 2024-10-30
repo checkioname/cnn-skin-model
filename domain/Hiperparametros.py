@@ -13,7 +13,7 @@ class Hiperparameters():
         self.weight_decay = 0.001
         
     def setup_model(self, layers_config, device):
-        model = NeuralNetwork(layers_config, dropout_prob=0.1).to(device)
+        model = NeuralNetwork(layers_config, device, dropout_prob=0.1).to(device)
         
         loss_fn = nn.BCELoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=self.learning_rate, momentum=self.momentum, weight_decay=self.weight_decay)

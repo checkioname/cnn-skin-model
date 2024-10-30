@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class LrScheduler():
     def __init__(self, patience, factor, optm):
         self.patience = patience
