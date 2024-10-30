@@ -34,9 +34,11 @@ class Training():
                 print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]")
 
 
-            for callback in self.callbacks: 
-                callback.on_epoch(epoch, self.model, loss)
-            
+        for callback in self.callbacks: 
+            callback.on_epoch(epoch, self.model, loss)
+            if callback.early_stopping is True:
+                break
+        
 
     # Função de teste
     def test(self, loss_fn, epoch, device):
