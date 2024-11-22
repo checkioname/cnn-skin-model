@@ -1,4 +1,6 @@
 import torch
+from application.callbacks import EarlyStopping
+from torchmetrics import Accuracy, Precision, Recall, F1Score
 
 class Training():
     def __init__(self, trainloader, testloader,model, writer, callbacks) -> None:
@@ -7,7 +9,7 @@ class Training():
 
         self.model = model
         self.writer = writer
-
+        self.should_stop = False
         self.callbacks = callbacks or []
 
     # Função de treinamento
@@ -36,27 +38,53 @@ class Training():
 
         for callback in self.callbacks: 
             callback.on_epoch(epoch, self.model, loss)
-            if callback.early_stopping is True:
-                break
-        
+            if isinstance(callback, EarlyStopping):
+                if callback.early_stopping is True:
+                    self.should_stop = True
+
+                
 
     # Função de teste
     def test(self, loss_fn, epoch, device):
-        size = len(self.testloader.dataset)
+        accuracy_metric = Accuracy(task="binary").to(device)
+        precision_metric = Precision(task="binary").to(device)
+        recall_metric = Recall(task="binary").to(device)
+        f1_metric = F1Score(task="binary").to(device)
+
         num_batches = len(self.testloader)
         self.model.eval()
-        test_loss, correct = 0, 0
+        test_loss = 0 
         with torch.no_grad():
             for X, y in self.testloader:
                 X, y = X.to(device), y.to(device)
                 pred = self.model(X)
                 pred = pred.squeeze(1)
+
                 test_loss += loss_fn(pred, y).item()
-                correct += (torch.round(pred) == y).sum().item()
+                
+                accuracy_metric.update(pred, y)
+                precision_metric.update(pred, y)
+                recall_metric.update(pred, y)
+                f1_metric.update(pred, y)
         
+        #perda média
         test_loss /= num_batches
-        correct /= size
-        accuracy = 100 * correct
+        
+        # Calculando os valores finais das métricas
+        accuracy = accuracy_metric.compute().item() * 100
+        precision = precision_metric.compute().item()
+        recall = recall_metric.compute().item()
+        f1_score = f1_metric.compute().item()
+        
         self.writer.add_scalar("Loss/test", test_loss, epoch)
         self.writer.add_scalar("Accuracy/test", accuracy, epoch)
+        self.writer.add_scalar("Precision/test", precision, epoch)
+        self.writer.add_scalar("Recall/test", recall, epoch)
+        self.writer.add_scalar("F1Score/test", f1_score, epoch)
         print(f"Test:\n Accuracy: {accuracy:.2f}% | Avg loss: {test_loss:.8f}\n")
+
+        # Zerando as métricas para o próximo ciclo de avaliação
+        accuracy_metric.reset()
+        precision_metric.reset()
+        recall_metric.reset()
+        f1_metric.reset()
