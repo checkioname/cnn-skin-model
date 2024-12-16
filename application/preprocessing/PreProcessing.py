@@ -14,11 +14,28 @@ class ImageProcessing():
         self.transforms = transforms.Compose([
             transforms.RandomRotation(50,fill=1),
             transforms.RandomResizedCrop((224,224)),
-            transforms.Resize((224,224)),
+            transforms.Resize((4000,3000)),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),  # Converte para tensor
         ])
+
+
+     def _opencv_preprocessing(self, image):
+        image = np.array(image)
+
+        # Aplicar Denoise (Non-Local Means Denoising)
+        denoised = cv2.fastNlMeansDenoisingColored(image, None, 
+                                                   h=10,  # Força do filtro
+                                                   templateWindowSize=5, 
+                                                   searchWindowSize=19)
+        
+        
+        gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
+        
+        equalized = cv2.equalizeHist(gray)
+        equalized_rgb = cv2.cvtColor(equalized, cv2.COLOR_GRAY2RGB)
+        return F.to_pil_image(equalized_rgb)
 
         
 
