@@ -63,30 +63,14 @@ def train_model(epochs, device):
     train_loader, test_loader = dataset.pre_processing(fold=1, batch_size=32)
 
     # Definindo as configurações de camadas do modelo
-    test_1 = [224,128,64,32,16]
-    test_2 = [128,64,32,16,8]
-    test_3 = [64,32,16,8,4]
-    test_4 = [16,32,64,128,224]
-    test_5 = [64,32,16,32,8]
-    test_6 = [32, 64, 128, 128, 256]   
-    test_7 = [16, 32, 64, 64, 128]     
-    test_8 = [64, 64, 128, 128, 256]   
-    test_9 = [32, 64, 64, 128, 128]    
-    test_10 = [32, 64, 64, 64, 128]    
-    test_11 = [128, 128, 256, 256, 512] 
-
-    tests = [test_6]
-
-    for i, layer_config in enumerate(tests):
-        print(f'Iniciando teste {i+1} com camadas: {layer_config}')
-        run_training(layer_config, train_loader, test_loader, class_to_idx, epochs, device, i)
+    run_training(layer_config, train_loader, test_loader, class_to_idx, epochs, device, i)
 
 
 def run_training(layer_config, train_loader, test_loader, class_to_idx, epochs, device, test_index):
     timestamp = time.time()
     save_path = f"runs/ml-model-test-{timestamp}"
     writer = SummaryWriter(save_path)
-    model_setup = SetupModel()
+    model_setup = SetupModelVgg()
     model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)
     
     training = Training(train_loader, model, writer)
