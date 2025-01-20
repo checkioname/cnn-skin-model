@@ -1,5 +1,8 @@
 # pastas com dataset e logs
 
+__pycache__/
+*.pyc
+
 /model_logs/ml-model-test-*/
 /runs/
 /infrastructure/

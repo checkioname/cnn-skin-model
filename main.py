@@ -7,13 +7,18 @@ import argparse
 import time
 
 from application.preprocessing.PreProcessing import ImageProcessing
+
 from application.utils.utils import generate_csv_from_dir
 from domain.Hiperparametros import SetupModel
 from application.cmd.Training import Training 
 
 import torch
+import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
+
+from domain.Vgg16 import SetupModelVgg
+
 from application.dataset.CustomDataset import CustomDataset
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -63,22 +68,24 @@ def train_model(epochs, device):
     train_loader, test_loader = dataset.pre_processing(fold=1, batch_size=32)
 
     # Definindo as configurações de camadas do modelo
-    run_training(layer_config, train_loader, test_loader, class_to_idx, epochs, device, i)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    setup = SetupModelVgg()
+    model, loss_fn, optimizer, scheduler = setup.setup_model(device)
 
+    run_training(model, train_loader, test_loader, class_to_idx, epochs, device, optimizer, loss_fn, scheduler)
 
-def run_training(layer_config, train_loader, test_loader, class_to_idx, epochs, device, test_index):
+def run_training(model, train_loader, test_loader, class_to_idx, epochs, device, optimizer, loss_fn, scheduler):
     timestamp = time.time()
     save_path = f"runs/ml-model-test-{timestamp}"
     writer = SummaryWriter(save_path)
-    model_setup = SetupModelVgg()
-    model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)
+    # model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)
     
     training = Training(train_loader, model, writer)
 
-    save_model_stats(model, writer, scheduler, optimizer, loss_fn)
+    # save_model_stats(model, writer, scheduler, optimizer, loss_fn)
 
     for epoch in range(epochs):
-        print(f"Epoch {epoch + 1}/{epochs}\n{'-'*30}")
+        print(f"Epoch {epoch + 1}/{epochs}\n{'-' * 30}")
         training.train(loss_fn, optimizer, class_to_idx, device, epoch)
         training.test(loss_fn, class_to_idx, epoch, device)
         scheduler.step()

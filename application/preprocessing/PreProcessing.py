@@ -1,10 +1,16 @@
 import sys
 import os
+
+import cv2
 import torch
+import torchvision
 from torch.utils.data import DataLoader, Subset
 from application.dataset.CustomDataset import CustomDataset
+import numpy as np
+
 from application.utils.background_remover.BackgroundRemoverPixelwise import PixelWiseRemover
 from torchvision import transforms
+from torchvision.transforms.functional import to_pil_image
 
 from application.utils.utils import generate_stratified_dataset
 
@@ -14,14 +20,14 @@ class ImageProcessing():
         self.transforms = transforms.Compose([
             transforms.RandomRotation(50,fill=1),
             transforms.RandomResizedCrop((224,224)),
-            transforms.Resize((4000,3000)),
+            transforms.Resize((224,224)),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),  # Converte para tensor
         ])
 
 
-     def _opencv_preprocessing(self, image):
+    def _opencv_preprocessing(self, image):
         image = np.array(image)
 
         # Aplicar Denoise (Non-Local Means Denoising)
@@ -35,7 +41,7 @@ class ImageProcessing():
         
         equalized = cv2.equalizeHist(gray)
         equalized_rgb = cv2.cvtColor(equalized, cv2.COLOR_GRAY2RGB)
-        return F.to_pil_image(equalized_rgb)
+        return to_pil_image(equalized_rgb)
 
         
 
