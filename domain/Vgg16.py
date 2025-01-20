@@ -1,6 +1,6 @@
-import pytorch.nn as nn
+import torch.nn as nn
 from torchvision import models
-from torchvision import optim
+from torch import optim
 
 class SetupModelVgg:
     def setup_model(self, device, dropout_prob=0.5):
