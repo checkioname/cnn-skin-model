@@ -1,3 +1,4 @@
+
 import sys
 import os
 
@@ -5,14 +6,11 @@ import cv2
 import torch
 import torchvision
 from torch.utils.data import DataLoader, Subset
-from application.dataset.CustomDataset import CustomDataset
 import numpy as np
 
-from application.utils.background_remover.BackgroundRemoverPixelwise import PixelWiseRemover
 from torchvision import transforms
 from torchvision.transforms.functional import to_pil_image
-
-from application.utils.utils import generate_stratified_dataset
+from application.dataset.CustomDataset import CustomDataset
 
 
 class ImageProcessing():
@@ -25,7 +23,6 @@ class ImageProcessing():
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),  # Converte para tensor
         ])
-
 
     def _opencv_preprocessing(self, image):
         image = np.array(image)
@@ -43,14 +40,8 @@ class ImageProcessing():
         equalized_rgb = cv2.cvtColor(equalized, cv2.COLOR_GRAY2RGB)
         return to_pil_image(equalized_rgb)
 
-        
-
     def pre_processing(self, fold, batch_size):
         ## Gerar o dataset estratificado
-
-        # processar pre processar cada uma das imagens com threads
-        # generate_stratified_dataset(fold, self.transforms, "/home/king/Documents/PsoriasisEngineering/image_labels.csv")
-
         try:
             train_index, val_index = self._load_idx(fold)
         except FileNotFoundError as e:
@@ -58,12 +49,13 @@ class ImageProcessing():
             return None, None
 
         custom_dataset = CustomDataset(csv_file='image_labels.csv', transform=self.transforms, target_transform=None)
+        print(f"TAMANHO DO DATASET: {len(custom_dataset.data)}")
         print(custom_dataset.data.head())
 
 
         #conjunto de treino e teste
-        train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True, num_workers=1)
+        test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=True, num_workers=1)
 
         return train_loader, test_loader
 

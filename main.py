@@ -8,14 +8,15 @@ import time
 
 from application.preprocessing.PreProcessing import ImageProcessing
 
-from application.utils.utils import generate_csv_from_dir
-from domain.Hiperparametros import SetupModel
-from application.cmd.Training import Training 
+from application.utils.utils import generate_csv_from_dir, generate_stratified_dataset
+from application.cmd.Training import Training
 
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
+from torchvision import transforms
+
 
 from domain.Vgg16 import SetupModelVgg
 
@@ -36,11 +37,15 @@ def parse_arguments():
     return parser.parse_args()
 
 def handle_arguments(args):
+
+
     if (args.func == 1):
         path = os.path.dirname(os.path.abspath(__file__))
         print(path)
         root_path = os.path.join('/infrastructure/db')
         generate_csv_from_dir(root_path, output_csv='image_labels.csv')
+    if (args.func == 2):
+        generate_stratified_dataset(2, 'image_labels.csv')
     else:
         print('Not generating csv dataset')
 
@@ -80,14 +85,14 @@ def run_training(model, train_loader, test_loader, class_to_idx, epochs, device,
     writer = SummaryWriter(save_path)
     # model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)
     
-    training = Training(train_loader, model, writer)
+    training = Training(train_loader, test_loader, model, writer, None)
 
     # save_model_stats(model, writer, scheduler, optimizer, loss_fn)
 
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}/{epochs}\n{'-' * 30}")
-        training.train(loss_fn, optimizer, class_to_idx, device, epoch)
-        training.test(loss_fn, class_to_idx, epoch, device)
+        training.train(loss_fn, optimizer, device, epoch)
+        training.test(loss_fn, epoch, device)
         scheduler.step()
 
     save_model_checkpoint(model, optimizer, epoch, save_path)

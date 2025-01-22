@@ -278,3 +278,6 @@ application/rag/content/runs/
 ## Model images/db 
 infrastructure/db/
 *.jpg
+
+## data
+*.csv

@@ -1,11 +1,12 @@
 import os
 import csv
 import torch
-import argparse
 from pandas import read_csv
 
 from sklearn.model_selection import StratifiedKFold
 from application.dataset.CustomDataset import CustomDataset
+from torchvision import transforms
+
 
 # Exemplo de uso:
 # generate_csv_from_dir('/home/king/Documents/PsoriasisEngineering/infrastructure/db')
@@ -13,12 +14,11 @@ from application.dataset.CustomDataset import CustomDataset
 # python -m application.utils.utils
 
 
-def generate_csv_from_dir(root_path='/infrastructure/db/', output_csv='image_labels.csv'):
+def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
     # Lista todas as subpastas dentro do diretório raiz (db)
     subfolders = [f.name for f in os.scandir(root_path) if f.is_dir()]
-
+    print(subfolders)
     data = []
-
     # Itera por cada subpasta e seus arquivos de imagem
     for subfolder in subfolders:
         subfolder_path = os.path.join(root_path, subfolder)
@@ -43,11 +43,20 @@ def generate_csv_from_dir(root_path='/infrastructure/db/', output_csv='image_lab
 
 
 # Criando KFold cross-validator
-def generate_stratified_dataset(num_folds, transforms, csv_path) -> None:
+def generate_stratified_dataset(num_folds, csv_path) -> None:
     kf = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=42)
 
+    transform = transforms.Compose([
+        transforms.RandomRotation(50,fill=1),
+        transforms.RandomResizedCrop((224,224)),
+        transforms.Resize((224,224)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.ToTensor(),  # Converte para tensor
+    ])
+
     # Criando DataLoader para o conjunto de treinamento
-    custom_dataset = CustomDataset(csv_file=csv_path, img_dir='image_labels.csv', transform=transforms, target_transform=None)
+    custom_dataset = CustomDataset(csv_file=csv_path, transform=transform, target_transform=None)
 
     labels = custom_dataset.labels
     for fold, (train_index, val_index) in enumerate(kf.split(range(len(labels)), labels)):
