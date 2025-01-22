@@ -6,4 +6,6 @@ scikit-learn
 pillow
 numpy
 argparse
+torchmetrics
 opencv-python
+pytest

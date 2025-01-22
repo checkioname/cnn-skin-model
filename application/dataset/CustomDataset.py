@@ -20,6 +20,8 @@ class CustomDataset(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.labels = [str(label) for label in self.data['labels']]
+        self.class_to_idx = {"psoriasis": 0, "dermatite": 1}
+
 
 
 
@@ -33,10 +35,11 @@ class CustomDataset(Dataset):
         
         if self.transform:
             image = self.transform(image)
-        if self.target_transform:
-            label = self.transform(label)
+
+        label_numeric = torch.tensor(self.class_to_idx[label], dtype=torch.float32)
+
         
-        return image, label
+        return image, label_numeric
     
     transforms = transforms.Compose([
         transforms.RandomRotation(50,fill=1),

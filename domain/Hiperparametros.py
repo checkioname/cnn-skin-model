@@ -6,17 +6,17 @@ from torch.optim.lr_scheduler import StepLR
 from domain.NeuralNetwork import NeuralNetwork
 
 
-class SetupModel():
-    
-    def setup_model(self, layers_config, device):
-        model = NeuralNetwork(layers_config, dropout_prob=0.1).to(device)
+class Hiperparameters():
+    def __init__(self):
+        self.learning_rate = 0.01
+        self.momentum = 0.9
+        self.weight_decay = 0.001
         
-        learning_rate = 0.01
-        momentum = 0.9
-        weight_decay = 0.001
+    def setup_model(self, layers_config, device):
+        model = NeuralNetwork(layers_config, device, dropout_prob=0.1).to(device)
         
         loss_fn = nn.BCELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
+        optimizer = torch.optim.SGD(model.parameters(), lr=self.learning_rate, momentum=self.momentum, weight_decay=self.weight_decay)
         scheduler = StepLR(optimizer, step_size=20, gamma=0.5)        
         # Registre detalhes no TensorBoard
         

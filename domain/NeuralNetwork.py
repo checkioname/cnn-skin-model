@@ -11,8 +11,9 @@ class Flatten(nn.Module):
 
 # O resize da nossa imagem foi para 224x224 e ela é colorida ( 3 channels)
 class NeuralNetwork(nn.Module):
-    def __init__(self, layers_config, dropout_prob=0.5):
+    def __init__(self, layers_config, device,  dropout_prob=0.5):
         super(NeuralNetwork, self).__init__()
+        self.device = device
         
         # Tamanho da imagem de entrada
         self.input_size = (3, 224, 224)
@@ -49,6 +50,7 @@ class NeuralNetwork(nn.Module):
         )
         
     def forward(self, x):
+        x = x.to(self.device)
         x = self.conv_layers(x)
         x = self.dropout(x)
         x = self.fc_layers(x)
