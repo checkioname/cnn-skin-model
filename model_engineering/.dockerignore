@@ -1,0 +1,13 @@
+# pastas com dataset e logs
+
+__pycache__/
+*.pyc
+
+/model_logs/ml-model-test-*/
+/runs/
+/infrastructure/
+
+
+/venv/lib/python3.12/site-packages/
+/application/rag/content/runs/*
+*.zip

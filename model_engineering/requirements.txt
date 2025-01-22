@@ -1,0 +1,11 @@
+torch
+pandas
+torchvision
+tensorboard
+scikit-learn
+pillow
+numpy
+argparse
+torchmetrics
+opencv-python
+pytest
