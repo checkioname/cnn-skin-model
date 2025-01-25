@@ -1,4 +1,4 @@
-package extraction
+package utils
 
 import (
 	"encoding/csv"
@@ -8,20 +8,7 @@ import (
 	"strings"
 )
 
-// def generate_csv_from_dir(root_path, output_csv='image_labels.csv'):
-//     # Escreve os dados no arquivo CSV
-//     with open(output_csv, mode='w', newline='') as file:
-//         writer = csv.writer(file)
-//         writer.writerow(["img_name", "labels"])
-//         print(f"ESCREVENDO OS DADOS {data}")
-//         writer.writerows(data)
-
-//     df = read_csv("image_labels.csv")
-//     print(df.head())
-
-//     print(f"CSV salvo como {output_csv}")
-
-func GenerateCsvFromDir(rootpath string) error {
+func GenerateCsvFromDir(rootpath, filename string) error {
 	subfolders, _ := getSubfolders(rootpath)
 	var data [][]string
 
@@ -30,6 +17,7 @@ func GenerateCsvFromDir(rootpath string) error {
 		entries, _ := os.ReadDir(subfolder_path)
 		for _, entry := range entries {
 			imagename := entry.Name()
+      fmt.Printf("Nome do arquivo eh %v \n", imagename)
 			if hasImageExtension(imagename) {
 				image_path := filepath.Join(subfolder_path, imagename)
 				label := subfolder
@@ -38,7 +26,7 @@ func GenerateCsvFromDir(rootpath string) error {
 		}
 	}
 
-	file, _ := os.Create("datatest.csv")
+	file, _ := os.Create(filename)
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
