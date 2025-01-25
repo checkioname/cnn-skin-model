@@ -8,7 +8,7 @@ import time
 
 from application.preprocessing.PreProcessing import ImageProcessing
 
-from application.utils.utils import generate_csv_from_dir, generate_stratified_dataset
+from application.utils.utils import generate_stratified_dataset
 from application.cmd.Training import Training
 
 import torch
@@ -35,19 +35,6 @@ def parse_arguments():
     parser.add_argument("-e", "--epochs", required=True, help="number of epochs on training", type=int)
     parser.add_argument("-f", "--func", required=False, help="Which function to run: \n 1- generate csv from data \n 2 - generate stratified dataset", type=int)
     return parser.parse_args()
-
-def handle_arguments(args):
-
-
-    if (args.func == 1):
-        path = os.path.dirname(os.path.abspath(__file__))
-        print(path)
-        root_path = os.path.join('/infrastructure/db')
-        generate_csv_from_dir(root_path, output_csv='image_labels.csv')
-    if (args.func == 2):
-        generate_stratified_dataset(2, 'image_labels.csv')
-    else:
-        print('Not generating csv dataset')
 
 def save_model_stats(model, writer, scheduler, optimizer, loss_fn):
     writer.add_graph(model, torch.randn(32, 3, 224, 224))
@@ -103,5 +90,4 @@ def run_training(model, train_loader, test_loader, class_to_idx, epochs, device,
 if __name__ == "__main__":
     args = parse_arguments()
     device = get_device()
-    handle_arguments(args)
     train_model(args.epochs, device)
