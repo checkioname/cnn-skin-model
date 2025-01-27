@@ -26,7 +26,7 @@ class SetupModelVgg:
 
         # Definir loss, optimizer e scheduler
         loss_fn = nn.BCELoss()
-        optimizer = optim.Adam(model.classifier[6].parameters(), lr=1e-4)
+        optimizer = optim.Adam(model.classifier[6].parameters(), lr=0.01)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
         return model, loss_fn, optimizer, scheduler

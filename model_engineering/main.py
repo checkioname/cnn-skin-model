@@ -6,6 +6,8 @@ import os
 import argparse
 import time
 
+import psutil
+
 from application.preprocessing.PreProcessing import ImageProcessing
 
 from application.utils.utils import generate_stratified_dataset
@@ -53,6 +55,12 @@ def save_model_checkpoint(model, optimizer, epoch, save_path):
         }, os.path.join(save_path, 'model.pt'))
     print(f"Modelo salvo em: {save_path}")
 
+def monitor_resources():
+    process = psutil.Process(os.getpid())
+    mem_usage = process.memory_info().rss / (1024 ** 3)  # GB
+    cpu_usage = process.cpu_percent(interval=1)
+    print(f"Memory Usage: {mem_usage:.2f} GB, CPU Usage: {cpu_usage}%")
+    return mem_usage, cpu_usage
 
 def train_model(epochs, device):
     class_to_idx = {"psoriasis": 0, "dermatite": 1}
@@ -64,9 +72,9 @@ def train_model(epochs, device):
     setup = SetupModelVgg()
     model, loss_fn, optimizer, scheduler = setup.setup_model(device)
 
-    run_training(model, train_loader, test_loader, class_to_idx, epochs, device, optimizer, loss_fn, scheduler)
+    run_training(model, train_loader, test_loader, epochs, device, optimizer, loss_fn, scheduler)
 
-def run_training(model, train_loader, test_loader, class_to_idx, epochs, device, optimizer, loss_fn, scheduler):
+def run_training(model, train_loader, test_loader, epochs, device, optimizer, loss_fn, scheduler):
     timestamp = time.time()
     save_path = f"runs/ml-model-test-{timestamp}"
     writer = SummaryWriter(save_path)
@@ -80,9 +88,10 @@ def run_training(model, train_loader, test_loader, class_to_idx, epochs, device,
         print(f"Epoch {epoch + 1}/{epochs}\n{'-' * 30}")
         training.train(loss_fn, optimizer, device, epoch)
         training.test(loss_fn, epoch, device)
+        monitor_resources()
         scheduler.step()
-
     save_model_checkpoint(model, optimizer, epoch, save_path)
+
     writer.flush()
     writer.close()
 
