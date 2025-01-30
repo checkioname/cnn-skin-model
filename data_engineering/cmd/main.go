@@ -48,7 +48,9 @@ func main() {
 
 func GetSharedFile() string {
     wd, _ := os.Getwd()
-    baseDir := strings.Join(strings.Split(wd, "/")[:len(strings.Split(wd, "/")) -1],"/") 
+    wdname := strings.Split(wd, "/")
+
+    baseDir := strings.Join(wdname[:len(wdname) -1],"/") 
     filename := baseDir + "/dataset.csv"
     return filename
 }

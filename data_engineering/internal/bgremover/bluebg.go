@@ -1,10 +1,31 @@
 package bgremover
 
-import "gocv.io/x/gocv"
+import (
+	"os"
+	"strings"
+
+	"gocv.io/x/gocv"
+)
 
 // Como o fundo de nossos arquivos sao azuis, vamos remover somente fundos azuis :)
 
-func RemoveBlueBg(imgPath string) {
+
+func RemoveBlueBgDir(dirPath string) {
+  entries, _ := os.ReadDir(dirPath) 
+
+  for _, entry := range entries {
+    filename := strings.Split(entry.Name(), "/")
+    // outpath := strings.Join(filename[:len(filename) -1], "/no_blue_bg")
+    outpath := "no_blue_bg" + filename[len(filename) -1]
+
+    result := RemoveBlueBg(entry.Name()) 
+    gocv.IMWrite(outpath, result)
+  }
+}
+
+
+
+func RemoveBlueBg(imgPath string) gocv.Mat {
 
   img := gocv.IMRead(imgPath, gocv.IMReadColor)
 	if img.Empty() {
@@ -37,9 +58,8 @@ func RemoveBlueBg(imgPath string) {
 	gocv.BitwiseAndWithMask(img, img, &result, maskInv)
 
 	// Salvar a imagem final sem fundo azul
-	outputPath := "output_no_blue.png"
-	gocv.IMWrite(outputPath, result)
+	// outputPath := "output_no_blue.png"
+	// gocv.IMWrite(outputPath, result)
 
-	println("Imagem processada e salva em:", outputPath)
+	return result
 }
-
