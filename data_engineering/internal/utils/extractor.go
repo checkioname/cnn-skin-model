@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/csv"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,4 +69,25 @@ func hasImageExtension(filename string) bool {
 		}
 	}
 	return false
+}
+
+
+func GetBatches(entries []fs.DirEntry, numbatch int) ([][]fs.DirEntry, error) {
+
+	batchsize := len(entries) / numbatch
+  if len(entries)%numbatch != 0 {
+    batchsize++
+  }
+
+  var batches [][]fs.DirEntry
+
+	for i := 0; i <= len(entries); i += batchsize {
+    end := i + batchsize
+    if end > len(entries) {
+      end = len(entries)
+    }
+		batches = append(batches, entries[i:end])
+  }
+  
+  return batches, nil
 }

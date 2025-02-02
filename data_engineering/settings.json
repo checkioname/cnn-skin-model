@@ -1,0 +1,13 @@
+{
+  "GenerateCsv": {
+   "path": "exemple"
+  },
+  "RemoveBg": {
+    "inpPath": "example",
+    "outPath": "example"
+  }
+  
+}
+
+
+
