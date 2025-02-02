@@ -1,13 +1,18 @@
 package bgremover
 
-import "gocv.io/x/gocv"
+import (
+	"errors"
 
+	"gocv.io/x/gocv"
+)
 
-func SegmentateSkin(path string) {
+type SkinBgRemover struct {}
+
+func (br *SkinBgRemover) RemoveBG(path string) (gocv.Mat, error) {
   
   img := gocv.IMRead(path, gocv.IMReadColor)
   if img.Empty() {
-    panic("A imagem eh vazia")
+    return gocv.Mat{}, errors.New("A imagem eh vazia")
   }
   defer img.Close()
 
@@ -17,7 +22,6 @@ func SegmentateSkin(path string) {
   defer ycbrImg.Close()
 
   gocv.CvtColor(img, &ycbrImg, gocv.ColorRGBToYCrCb)
-
 
   // separar os canais da imagem para filtro
   channels := gocv.Split(ycbrImg)
@@ -43,11 +47,11 @@ func SegmentateSkin(path string) {
 
 	// Aplicar a máscara na imagem original
 	result := gocv.NewMat()
-	defer result.Close()
 	gocv.BitwiseAndWithMask(img, img, &result, skinMask)
 
 	// Salvar o resultado
 	outputPath := "output_skin_detection.png"
 	gocv.IMWrite(outputPath, result)
 
+  return result, nil
 }

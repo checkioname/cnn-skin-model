@@ -1,0 +1,4 @@
+{
+  inpPath: "",
+  outPath: "", 
+}
