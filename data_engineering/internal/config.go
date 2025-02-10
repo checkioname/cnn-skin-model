@@ -1,4 +1,3 @@
-{
-  inpPath: "",
-  outPath: "", 
-}
+package internal 
+
+

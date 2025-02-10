@@ -1,3 +1,8 @@
+package crawlers
+
+type Crawler struct{}
+
+// translate this pytho code later
 // // from onedrivesdk import HttpProvider, Client, AuthProvider
 // // from onedrivesdk.helpers import GetAuthCodeServer
 
