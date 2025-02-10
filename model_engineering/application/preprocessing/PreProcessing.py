@@ -48,7 +48,7 @@ class ImageProcessing():
             print(f"Erro ao carregar os índices de treino/validação: {e}")
             return None, None
 
-        custom_dataset = CustomDataset(csv_file='image_labels.csv', transform=self.transforms, target_transform=None)
+        custom_dataset = CustomDataset(csv_file='dataset.csv', transform=self.transforms, target_transform=None)
         print(f"TAMANHO DO DATASET: {len(custom_dataset.data)}")
         print(custom_dataset.data.head())
 

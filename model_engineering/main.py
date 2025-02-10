@@ -72,12 +72,17 @@ def train_model(epochs, device):
     setup = SetupModelVgg()
     model, loss_fn, optimizer, scheduler = setup.setup_model(device)
 
+
     run_training(model, train_loader, test_loader, epochs, device, optimizer, loss_fn, scheduler)
 
 def run_training(model, train_loader, test_loader, epochs, device, optimizer, loss_fn, scheduler):
     timestamp = time.time()
     save_path = f"runs/ml-model-test-{timestamp}"
     writer = SummaryWriter(save_path)
+
+    dummy_input = torch.randn(224, 224)
+    writer.add_graph(model, dummy_input)
+
     # model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)
     
     training = Training(train_loader, test_loader, model, writer, None)
