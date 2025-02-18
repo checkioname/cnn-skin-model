@@ -2,8 +2,6 @@ package augmentation
 
 import (
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -30,13 +28,7 @@ func AugmentImages(img gocv.Mat, filters ...Augmentor) gocv.Mat {
 
 // batch augmentation
 func BatchAugmentation(inpDir, outDir string, filters ...Augmentor) {
-	entries, err := os.ReadDir(inpDir)
-	if err != nil {
-		fmt.Println("Houve um erro na listagem do diretorio")
-		fmt.Println(err)
-		return
-	}
-
+  entries := utils.ReadNestedDir(inpDir)
 	batches, _ := utils.GetBatches(entries, 2)
 
 	var wg sync.WaitGroup
@@ -44,7 +36,7 @@ func BatchAugmentation(inpDir, outDir string, filters ...Augmentor) {
 	for i, batch := range batches {
 		wg.Add(1)
 		fmt.Println("Starting augmentation on batch", i)
-		go func(batchCopy []fs.DirEntry) {
+		go func(batchCopy []string) {
 			defer wg.Done()
 
 			for _, entry := range batchCopy {
@@ -52,11 +44,11 @@ func BatchAugmentation(inpDir, outDir string, filters ...Augmentor) {
 				for _, f := range filters {
 					outprefix += fmt.Sprintf("%v_", f.GetName())
 				}
-				outpath := filepath.Join(outDir, fmt.Sprintf("%v%v", outprefix, entry.Name()))
+				outpath := filepath.Join(outDir, fmt.Sprintf("%v%v", outprefix, entry))
 
 				outpath = strings.Replace(outpath, ".jpg", "_no_bg.jpg", 1)
 
-				imgfullpath := filepath.Join(inpDir, entry.Name())
+				imgfullpath := filepath.Join(inpDir, entry)
 				img := gocv.IMRead(imgfullpath, gocv.IMReadColor)
 				if img.Empty() {
 					fmt.Println("Image vazia - pulando", imgfullpath)

@@ -10,21 +10,32 @@ import (
 )
 
 func GenerateCsvFromDir(rootpath, filename string) error {
-
 	var data [][]string
 
 	err := filepath.WalkDir(rootpath, func(path string, d fs.DirEntry, err error) error {
-		label := strings.Split(strings.Split(path[len(rootpath):], "/")[0], "_")[0]
-		if d.IsDir() == false {
-			imagename := d.Name()
-			if hasImageExtension(imagename) {
-				image_path := path
-				data = append(data, []string{image_path, label})
+    if !d.IsDir() {
+      relativePath := strings.TrimPrefix(path, rootpath)
+			labelPath := strings.Split(relativePath, "/")
+			label := "UNKNOWN"
 
+			if len(labelPath) > 1 && labelPath[1] != "" {
+				dirName := strings.ToLower(labelPath[1])
+				switch {
+				case strings.HasPrefix(dirName, "psoriasis"):
+					label = "psoriasis"
+				case strings.HasPrefix(dirName, "dermatite"):
+					label = "dermatite"
+				}
+			}
+
+    if hasImageExtension(d.Name()) {
+				imagePath := path
+				data = append(data, []string{imagePath, label})
 			}
 		}
 		return nil
 	})
+
 	if err != nil {
 		fmt.Println("Houve um erro")
 	}
@@ -73,14 +84,14 @@ func hasImageExtension(filename string) bool {
 	return false
 }
 
-func GetBatches(entries []fs.DirEntry, numbatch int) ([][]fs.DirEntry, error) {
+func GetBatches(entries []string, numbatch int) ([][]string, error) {
 
 	batchsize := len(entries) / numbatch
 	if len(entries)%numbatch != 0 {
 		batchsize++
 	}
 
-	var batches [][]fs.DirEntry
+	var batches [][] string
 
 	for i := 0; i <= len(entries); i += batchsize {
 		end := i + batchsize
@@ -91,4 +102,24 @@ func GetBatches(entries []fs.DirEntry, numbatch int) ([][]fs.DirEntry, error) {
 	}
 
 	return batches, nil
+}
+
+
+func ReadNestedDir(path string) []string {
+  var fullpath []string
+
+	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+    fullpath = append(fullpath, path)
+		return nil
+	})
+  
+  if err != nil {
+    return nil
+  }
+
+  return fullpath
+}
+
+
+func CreateNestedDir(path string) {
 }
