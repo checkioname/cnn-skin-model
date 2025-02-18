@@ -10,24 +10,26 @@ import (
 )
 
 func GenerateCsvFromDir(rootpath, filename string) error {
-	subfolders, _ := getSubfolders(rootpath)
+
 	var data [][]string
 
-	for _, subfolder := range subfolders {
-		subfolder_path := filepath.Join(rootpath, subfolder)
-		entries, _ := os.ReadDir(subfolder_path)
-		for _, entry := range entries {
-			imagename := entry.Name()
-      fmt.Printf("Nome do arquivo eh %v \n", imagename)
+	err := filepath.WalkDir(rootpath, func(path string, d fs.DirEntry, err error) error {
+		label := strings.Split(strings.Split(path[len(rootpath):], "/")[0], "_")[0]
+		if d.IsDir() == false {
+			imagename := d.Name()
 			if hasImageExtension(imagename) {
-				image_path := filepath.Join(subfolder_path, imagename)
-				label := subfolder
+				image_path := path
 				data = append(data, []string{image_path, label})
+
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		fmt.Println("Houve um erro")
 	}
-
-	file, _ := os.Create(filename)
+	
+  file, _ := os.Create(filename)
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
@@ -71,23 +73,22 @@ func hasImageExtension(filename string) bool {
 	return false
 }
 
-
 func GetBatches(entries []fs.DirEntry, numbatch int) ([][]fs.DirEntry, error) {
 
 	batchsize := len(entries) / numbatch
-  if len(entries)%numbatch != 0 {
-    batchsize++
-  }
+	if len(entries)%numbatch != 0 {
+		batchsize++
+	}
 
-  var batches [][]fs.DirEntry
+	var batches [][]fs.DirEntry
 
 	for i := 0; i <= len(entries); i += batchsize {
-    end := i + batchsize
-    if end > len(entries) {
-      end = len(entries)
-    }
+		end := i + batchsize
+		if end > len(entries) {
+			end = len(entries)
+		}
 		batches = append(batches, entries[i:end])
-  }
-  
-  return batches, nil
+	}
+
+	return batches, nil
 }
