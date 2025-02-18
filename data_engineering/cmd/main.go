@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 
@@ -13,58 +14,69 @@ import (
 	"github.com/checkioname/cnn-skin-model/internal/augmentation/rotate"
 	"github.com/checkioname/cnn-skin-model/internal/bgremover"
 	"github.com/checkioname/cnn-skin-model/internal/dataset"
-	e "github.com/checkioname/cnn-skin-model/internal/utils"
+	"github.com/checkioname/cnn-skin-model/internal/utils"
 )
 
 func main() {
-	// flags
-	// Gerar Dataset
-	rootpath := flag.String("p", "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/model_engineering/infrastructure/db/", "caminho para gerar o dataset")
-	gendataset := flag.Bool("d", false, "Gerar ou nao o dataset")
-	strat := flag.Bool("s", false, "Gerar indices stratificado do dataset")
 
-	rmbg := flag.Bool("r", false, "Remover background do diretorio")
-	augbg := flag.Bool("a", false, "Aumento das imagens do diretorio")
-	// Parse flags
+	// Definir subcomandos
+	genDatasetCmd := flag.NewFlagSet("gendataset", flag.ExitOnError)
+	removeBgCmd := flag.NewFlagSet("removebg", flag.ExitOnError)
+	stratCmd := flag.NewFlagSet("stratify", flag.ExitOnError)
+	augmentCmd := flag.NewFlagSet("augment", flag.ExitOnError)
+
+	// Flags do subcomando `gendataset`
+	rootPath := genDatasetCmd.String("p", "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/model_engineering/infrastructure/db/", "Caminho do dataset")
+
+	// Flags do subcomando `removebg`
+	rmDir := removeBgCmd.String("indir", "", "Diretório com imagens para remover background")
+	rmOutDir := removeBgCmd.String("outdir", "", "Diretório para salvar imagens sem background")
+
+	// Flags do subcomando `augment`
+	augDir := augmentCmd.String("indir", "", "Diretório de entrada com imagens para aumento de base")
+	augOutDir := augmentCmd.String("outdir", "", "Diretório para salvar imagens aumentadas")
+
 	flag.Parse()
 
-	// Handling flags
-	if *gendataset {
-
+	switch os.Args[1] {
+	case "gendataset":
 		filename := GetSharedFile()
-		e.GenerateCsvFromDir(*rootpath, filename)
-		println(filename)
+		genDatasetCmd.Parse(os.Args[2:])
+		utils.GenerateCsvFromDir(*rootPath, filename)
 
-	}
+	case "removebg":
+		removeBgCmd.Parse(os.Args[2:])
+		if *rmDir == "" || *rmOutDir == "" {
+			fmt.Println("Erro: --indir e --outdir são obrigatórios para removebg")
+			os.Exit(1)
+		}
 
-	if *rmbg {
-		dir := "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/model_engineering/infrastructure/db/dermatite/"
-		outdir := "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/data_engineering/noblue_bg_dermatite/"
-
-		//choose methods that implement remove bg interface (blue remover, sking segmentation remover)
 		blueRemover := bgremover.NewBgRemover("blue")
-		bgremover.RemoveBlueBgDir(dir, outdir, blueRemover)
-	}
+		bgremover.RemoveBlueBgDir(*rmDir, *rmOutDir, blueRemover)
+	case "stratify":
+		stratCmd.Parse(os.Args[2:])
 
-	if *strat {
 		filename := GetSharedFile()
 		dataset := dataset.NewDataset(filename)
 		dataset.LoadLabelsIdx()
-	}
-	*augbg = true
-	if *augbg {
-		dir := "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/data_engineering/db_no_bluebg/noblue_bg_dermatite/"
-		//"/home/king/Documents/PsoriasisEngineering/cnn-skin-model/model_engineering/infrastructure/db/dermatite/"
-		outdir := "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/data_engineering/db_augmented/dermatite/"
+
+	case "augment":
+		augmentCmd.Parse(os.Args[2:])
+		if *augDir == "" || *augOutDir == "" {
+			fmt.Println("Erro: --indir e --outdir são obrigatórios para augment")
+			os.Exit(1)
+		}
 		resize := resize.NewResize()
 		bright := brightness.NewBrightness()
 		denoise := denoise.NewDenoise()
 		flip := flip.NewFlip()
 		rotate := rotate.NewRotate()
 
-		augmentation.BatchAugmentation(dir, outdir, resize, bright, denoise, flip, rotate)
+		augmentation.BatchAugmentation(*augDir, *augOutDir, resize, bright, denoise, flip, rotate)
+	default:
+		fmt.Println("Subcomando inválido. Use: gendataset | removebg | stratify | augment")
+		os.Exit(1)
 	}
-
 }
 
 func GetSharedFile() string {
