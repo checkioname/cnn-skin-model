@@ -5,6 +5,7 @@ import os
 import cv2
 import torch
 import torchvision
+from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader, Subset
 import numpy as np
 
@@ -42,6 +43,7 @@ class ImageProcessing():
 
     def pre_processing(self, fold, batch_size):
         ## Gerar o dataset estratificado
+        self.generate_stratified_dataset(4, self.transforms)
         try:
             train_index, val_index = self._load_idx(fold)
         except FileNotFoundError as e:
@@ -59,7 +61,7 @@ class ImageProcessing():
 
         return train_loader, test_loader
 
-    def _load_idx(self,fold):
+    def _load_idx(self,fold) -> ([],[]):
         base_path = 'application/rag/content/index'
         train_index_path = os.path.join(base_path, f'train_index_fold{fold}.pt')
         val_index_path = os.path.join(base_path, f'val_index_fold{fold}.pt')
@@ -68,3 +70,19 @@ class ImageProcessing():
         val_index = torch.load(val_index_path)
 
         return train_index, val_index
+
+    def generate_stratified_dataset(self, num_folds, transforms) -> None:
+        kf = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=42)
+
+        # Criando DataLoader para o conjunto de treinamento
+        custom_dataset = CustomDataset(csv_file='dataset.csv', transform=transforms, target_transform=None)
+
+        labels = custom_dataset.labels
+        for fold, (train_index, val_index) in enumerate(kf.split(range(len(labels)), labels)):
+            print(f"Fold {fold + 1}/{num_folds}")
+
+            # Salvando os índices de treinamento e validação
+            torch.save(train_index, os.path.join(f'application/rag/content/index/train_index_fold{fold}.pt'))
+            torch.save(val_index, os.path.join(f'application/rag/content/index/val_index_fold{fold}.pt'))
+
+            print(train_index, val_index)

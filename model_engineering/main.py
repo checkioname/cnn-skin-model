@@ -80,7 +80,7 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer, lo
     save_path = f"runs/ml-model-test-{timestamp}"
     writer = SummaryWriter(save_path)
 
-    dummy_input = torch.randn(224, 224)
+    dummy_input = torch.randn(1, 3, 224, 224)
     writer.add_graph(model, dummy_input)
 
     # model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)
@@ -92,9 +92,9 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer, lo
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}/{epochs}\n{'-' * 30}")
         training.train(loss_fn, optimizer, device, epoch)
-        training.test(loss_fn, epoch, device)
+        test_loss = training.test(loss_fn, epoch, device)
         monitor_resources()
-        scheduler.step()
+        scheduler.step(test_loss)
     save_model_checkpoint(model, optimizer, epoch, save_path)
 
     writer.flush()
