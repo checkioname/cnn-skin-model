@@ -88,3 +88,4 @@ class Training():
         precision_metric.reset()
         recall_metric.reset()
         f1_metric.reset()
+        return test_loss
