@@ -5,26 +5,18 @@ import sys
 import os
 import argparse
 import time
-
 import psutil
 
 from application.preprocessing.PreProcessing import ImageProcessing
-
-from application.utils.utils import generate_stratified_dataset
 from application.cmd.Training import Training
+from domain.SetupModel import SetupModel
 
 import torch
-import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import StepLR
-from torchvision import transforms
-
-
-from domain.Vgg16 import SetupModelVgg
-
-from application.dataset.CustomDataset import CustomDataset
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+torch.backends.cudnn.benchmark = True
 
 def get_device():
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -35,6 +27,7 @@ def get_device():
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--epochs", required=True, help="number of epochs on training", type=int)
+    parser.add_argument("-m", "--model", required=True, help="Model architecture: vgg16, resnet152, vit, swin", type=str)
     parser.add_argument("-f", "--func", required=False, help="Which function to run: \n 1- generate csv from data \n 2 - generate stratified dataset", type=int)
     return parser.parse_args()
 
@@ -62,14 +55,14 @@ def monitor_resources():
     print(f"Memory Usage: {mem_usage:.2f} GB, CPU Usage: {cpu_usage}%")
     return mem_usage, cpu_usage
 
-def train_model(epochs, device):
+def train_model(epochs, model_name):
     class_to_idx = {"psoriasis": 0, "dermatite": 1}
     dataset = ImageProcessing()
     train_loader, test_loader = dataset.pre_processing(fold=1, batch_size=32)
 
     # Definindo as configurações de camadas do modelo
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    setup = SetupModelVgg()
+    setup = SetupModel(model_name)
     model, loss_fn, optimizer, scheduler = setup.setup_model(device)
 
 
@@ -80,7 +73,7 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer, lo
     save_path = f"runs/ml-model-test-{timestamp}"
     writer = SummaryWriter(save_path)
 
-    dummy_input = torch.randn(1, 3, 224, 224)
+    dummy_input = torch.randn(1, 3, 512, 512)
     writer.add_graph(model, dummy_input)
 
     # model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)
@@ -103,5 +96,4 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer, lo
 
 if __name__ == "__main__":
     args = parse_arguments()
-    device = get_device()
-    train_model(args.epochs, device)
+    train_model(args.epochs, args.model)

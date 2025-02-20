@@ -9,3 +9,4 @@ argparse
 torchmetrics
 opencv-python
 pytest
+timm
