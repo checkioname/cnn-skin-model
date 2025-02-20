@@ -18,8 +18,8 @@ class ImageProcessing():
     def __init__(self):
         self.transforms = transforms.Compose([
             transforms.RandomRotation(50,fill=1),
-            transforms.RandomResizedCrop((224,224)),
-            transforms.Resize((224,224)),
+            transforms.RandomResizedCrop((512,512)),
+            transforms.Resize((512,512)),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),  # Converte para tensor
@@ -52,8 +52,6 @@ class ImageProcessing():
 
         custom_dataset = CustomDataset(csv_file='dataset.csv', transform=self.transforms, target_transform=None)
         print(f"TAMANHO DO DATASET: {len(custom_dataset.data)}")
-        print(custom_dataset.data.head())
-
 
         #conjunto de treino e teste
         train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True, num_workers=1)
@@ -66,8 +64,8 @@ class ImageProcessing():
         train_index_path = os.path.join(base_path, f'train_index_fold{fold}.pt')
         val_index_path = os.path.join(base_path, f'val_index_fold{fold}.pt')
 
-        train_index = torch.load(train_index_path)
-        val_index = torch.load(val_index_path)
+        train_index = torch.load(train_index_path, weights_only=False)
+        val_index = torch.load(val_index_path, weights_only=False)
 
         return train_index, val_index
 
@@ -84,5 +82,3 @@ class ImageProcessing():
             # Salvando os índices de treinamento e validação
             torch.save(train_index, os.path.join(f'application/rag/content/index/train_index_fold{fold}.pt'))
             torch.save(val_index, os.path.join(f'application/rag/content/index/val_index_fold{fold}.pt'))
-
-            print(train_index, val_index)

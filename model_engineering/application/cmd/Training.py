@@ -1,6 +1,7 @@
 import torch
 from application.callbacks import EarlyStopping
 from torchmetrics import Accuracy, Precision, Recall, F1Score
+from torch.cuda.amp import autocast, GradScaler
 
 class Training():
     def __init__(self, trainloader, testloader,model, writer, callbacks) -> None:
@@ -16,20 +17,24 @@ class Training():
     def train(self, loss_fn, optimizer, device,epoch):
         size = len(self.trainloader.dataset)
         self.model.train()
+        # scaler = GradScaler()
         for batch, (X, y) in enumerate(self.trainloader):
             X, y = X.to(device), y.to(device)
 
             optimizer.zero_grad()
-
+            # with autocast():
             pred = self.model(X)
             pred = pred.squeeze(1)
             loss = loss_fn(pred, y)
 
             self.writer.add_scalar("Loss/train", loss, epoch)
-            
+
+            # scaler.scale(loss).backward()
             loss.backward()
             # gradient clipping - evita que gradiente muito grande exploda (pode retornar null no backward)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+            # scaler.step(optimizer)
+            # scaler.update()
             optimizer.step()
             if batch % 100 == 0:
                 current = batch * len(X)
