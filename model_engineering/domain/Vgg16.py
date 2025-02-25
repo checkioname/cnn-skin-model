@@ -5,7 +5,7 @@ from torch import optim
 class SetupModelVgg:
     def setup_model(self, device, dropout_prob=0.5):
         # Carregar o modelo VGG16 pré-treinado
-        vgg = models.vgg16(pretrained=True)
+        vgg = models.vgg16(weights=VGG)
 
         # Congelar todas as camadas convolucionais
         for param in vgg.features.parameters():
