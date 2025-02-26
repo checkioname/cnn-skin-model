@@ -1,10 +1,10 @@
 import torch.nn as nn
 import torch.optim as optim
 
-from Vgg16 import SetupModelVgg
-from ResNet152 import SetupModelResNet152
-from Vit import SetupModelViT
-from Swim import SetupModelSwin
+from domain.Vgg16 import SetupModelVgg
+from domain.ResNet152 import SetupModelResNet152
+from domain.Vit import SetupModelViT
+from domain.Swim import SetupModelSwin
 
 class SetupModel:
     def __init__(self, model_name, num_classes=1, dropout_prob=0.5):
@@ -24,17 +24,17 @@ class SetupModel:
     def _initialize_model(self, device):
         """Delegar a criação do modelo para classes específicas."""
         if self.model_name == "vgg16":
-            model_setup = SetupModelVgg(self.num_classes, self.dropout_prob)
-            model = model_setup.setup_model(device)
+            model_setup = SetupModelVgg()
+            model, _, _, _ = model_setup.setup_model(device, self.dropout_prob)
         elif self.model_name == "resnet152":
-            model_setup = SetupModelResNet152(self.num_classes, self.dropout_prob)
-            model = model_setup.setup_model(device)
+            model_setup = SetupModelResNet152()
+            model, _, _, _ = model_setup.setup_model(device, self.dropout_prob)
         elif self.model_name == "vit":
-            model_setup = SetupModelViT(self.num_classes, self.dropout_prob)
-            model = model_setup.setup_model(device)
+            model_setup = SetupModelViT()
+            model, _, _, _ = model_setup.setup_model(device, self.dropout_prob)
         elif self.model_name == "swin":
-            model_setup = SetupModelSwin(self.num_classes, self.dropout_prob)
-            model = model_setup.setup_model(device)
+            model_setup = SetupModelSwin()
+            model, _, _, _ = model_setup.setup_model(device, self.dropout_prob)
 
         else:
             raise ValueError(f"Modelo '{self.model_name}' não suportado.")
