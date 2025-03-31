@@ -1,5 +1,7 @@
+import numpy as np
 import torch
 from application.callbacks import EarlyStopping
+# from domain.GradCAM import GradCAM
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from torch.cuda.amp import autocast, GradScaler
 
@@ -12,6 +14,8 @@ class Training():
         self.writer = writer
         self.should_stop = False
         self.callbacks = callbacks or []
+        # self.grad_cam = GradCAM
+
 
     # Função de treinamento
     def train(self, loss_fn, optimizer, device,epoch):
@@ -60,7 +64,7 @@ class Training():
         self.model.eval()
         test_loss = 0 
         with torch.no_grad():
-            for X, y in self.testloader:
+            for i, (X, y) in enumerate(self.testloader):
                 X, y = X.to(device), y.to(device)
                 pred = self.model(X)
                 pred = pred.squeeze(1)
@@ -71,26 +75,42 @@ class Training():
                 precision_metric.update(pred, y)
                 recall_metric.update(pred, y)
                 f1_metric.update(pred, y)
-        
-        #perda média
-        test_loss /= num_batches
-        
-        # Calculando os valores finais das métricas
-        accuracy = accuracy_metric.compute().item() * 100
-        precision = precision_metric.compute().item()
-        recall = recall_metric.compute().item()
-        f1_score = f1_metric.compute().item()
-        
-        self.writer.add_scalar("Loss/test", test_loss, epoch)
-        self.writer.add_scalar("Accuracy/test", accuracy, epoch)
-        self.writer.add_scalar("Precision/test", precision, epoch)
-        self.writer.add_scalar("Recall/test", recall, epoch)
-        self.writer.add_scalar("F1Score/test", f1_score, epoch)
-        print(f"Test:\n Accuracy: {accuracy:.2f}% | Avg loss: {test_loss:.8f}\n")
 
-        # Zerando as métricas para o próximo ciclo de avaliação
-        accuracy_metric.reset()
-        precision_metric.reset()
-        recall_metric.reset()
-        f1_metric.reset()
-        return test_loss
+                # adicionar gradcam
+                if i == 0:
+                    target_layer = self.model.layers[-1].blocks[-1].norm1  # camada swin
+                
+                    gradcam = GradCAM(self.model, target_layer)
+                    gradcam_maps = []
+                    for img in X[:3]:
+                        gradcam_maps.append(gradcam.generate(img.unsqueeze(0)))
+
+                    for j in range(3):
+                        img = (X[j].cpu().numpy().transpose(1, 2, 0) * 255).astype(np.uint8)
+                        heatmap = gradcam.overlay_gradcam(img, gradcam_maps[j])
+                        heatmap = heatmap.transpose(2, 0, 1)  # transformando para C,H,W
+                        self.writer.add_image(f'GradCAM/Image_{j}', heatmap, epoch)
+                    gradcam.remove_hooks()
+        
+            #perda média
+            test_loss /= num_batches
+
+            # Calculando os valores finais das métricas
+            accuracy = accuracy_metric.compute().item() * 100
+            precision = precision_metric.compute().item()
+            recall = recall_metric.compute().item()
+            f1_score = f1_metric.compute().item()
+
+            self.writer.add_scalar("Loss/test", test_loss, epoch)
+            self.writer.add_scalar("Accuracy/test", accuracy, epoch)
+            self.writer.add_scalar("Precision/test", precision, epoch)
+            self.writer.add_scalar("Recall/test", recall, epoch)
+            self.writer.add_scalar("F1Score/test", f1_score, epoch)
+            print(f"Test:\n Accuracy: {accuracy:.2f}% | Avg loss: {test_loss:.8f}\n")
+
+            # Zerando as métricas para o próximo ciclo de avaliação
+            accuracy_metric.reset()
+            precision_metric.reset()
+            recall_metric.reset()
+            f1_metric.reset()
+            return test_loss

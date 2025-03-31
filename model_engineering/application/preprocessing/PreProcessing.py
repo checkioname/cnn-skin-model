@@ -17,9 +17,10 @@ from application.dataset.CustomDataset import CustomDataset
 class ImageProcessing():
     def __init__(self):
         self.transforms = transforms.Compose([
+            transforms.RandomResizedCrop(512, scale=(0.8, 1.0)),
             transforms.RandomRotation(50,fill=1),
-            transforms.RandomResizedCrop((512,512)),
-            transforms.Resize((512,512)),
+            # transforms.RandomResizedCrop((512,512)),
+            # transforms.Resize((512,512)),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),  # Converte para tensor

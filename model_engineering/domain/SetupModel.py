@@ -35,6 +35,11 @@ class SetupModel:
         elif self.model_name == "swin":
             model_setup = SetupModelSwin()
             model, _, _, _ = model_setup.setup_model(device, self.dropout_prob)
+        elif self.model_name == "custom":
+            layers_config = []
+            model_setup = Hiperparameters()
+            model, _, _, _ = model_setup.setup_model(layers_config,device)
+
 
         else:
             raise ValueError(f"Modelo '{self.model_name}' não suportado.")

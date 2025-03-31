@@ -73,7 +73,7 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer, lo
     save_path = f"runs/ml-model-test-{timestamp}"
     writer = SummaryWriter(save_path)
 
-    dummy_input = torch.randn(1, 3, 512, 512)
+    dummy_input = torch.randn(1, 3, 512, 512).to(device)
     writer.add_graph(model, dummy_input)
 
     # model, loss_fn, optimizer, scheduler = model_setup.setup_model(layer_config, device)

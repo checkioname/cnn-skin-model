@@ -24,7 +24,7 @@ class Hiperparameters():
     
 
     def register_config(self, model, scheduler, optimizer, batch_size, loss_fn, writer):
-        writer.add_graph(model, torch.randn(batch_size, 3, 224, 224))
+        writer.add_graph(model, torch.randn(batch_size, 3, 512, 512))
         writer.add_text("Model Configuration", str(model))
         writer.add_text("Scheduler", str(scheduler))
         writer.add_text("Optimizer Configuration", str(optimizer))

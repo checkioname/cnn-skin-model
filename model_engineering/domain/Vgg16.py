@@ -1,11 +1,13 @@
 import torch.nn as nn
 from torchvision import models
 from torch import optim
+from torchvision.models import VGG16_Weights
+
 
 class SetupModelVgg:
     def setup_model(self, device, dropout_prob=0.5):
         # Carregar o modelo VGG16 pré-treinado
-        vgg = models.vgg16(weights=VGG)
+        vgg = models.vgg16(weights=VGG16_Weights.DEFAULT)
 
         # Congelar todas as camadas convolucionais
         for param in vgg.features.parameters():

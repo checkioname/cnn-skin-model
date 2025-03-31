@@ -16,22 +16,22 @@ class NeuralNetwork(nn.Module):
         self.device = device
         
         # Tamanho da imagem de entrada
-        self.input_size = (3, 224, 224)
+        self.input_size = (3, 512, 512)
         
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(3, layers_config[0], kernel_size=3, padding=0),
-            nn.SELU(),
+            nn.Conv2d(3, layers_config[0], kernel_size=5, padding=0),
+            nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(layers_config[0], layers_config[1], kernel_size=3, padding=0),
-            nn.SELU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(layers_config[1], layers_config[2], kernel_size=3, padding=0),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(layers_config[2], layers_config[3], kernel_size=3, padding=0),
-            nn.SELU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(layers_config[3], layers_config[4], kernel_size=3, padding=0),
-            nn.SELU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2, stride=1)
         )
 
