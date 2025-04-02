@@ -6,6 +6,8 @@ import os
 import argparse
 import time
 import psutil
+import numpy as np
+import random
 
 from application.preprocessing.PreProcessing import ImageProcessing
 from application.cmd.Training import Training
@@ -95,5 +97,21 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer, lo
 
 
 if __name__ == "__main__":
+    seed = 42
+
+    torch.manual_seed(seed)
+
+        # Se você estiver usando a GPU, você também deve definir a semente para CUDA:
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed) # Para múltiplas GPUs
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    np.random.seed(seed)
+    random.seed(seed)
+
+
     args = parse_arguments()
     train_model(args.epochs, args.model)

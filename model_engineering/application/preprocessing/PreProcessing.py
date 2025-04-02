@@ -16,14 +16,24 @@ from application.dataset.CustomDataset import CustomDataset
 
 class ImageProcessing():
     def __init__(self):
+        # self.transforms = transforms.Compose([
+        #     transforms.Resize((1000,1000)),
+        #     transforms.RandomResizedCrop(512, scale=(0.8, 1.0)),
+        #     transforms.RandomRotation(50,fill=1),
+        #     transforms.RandomHorizontalFlip(p=0.5),
+        #     transforms.RandomVerticalFlip(p=0.5),
+        #     transforms.ToTensor(),  # Converte para tensor
+        # ])
+
+        # novo teste
         self.transforms = transforms.Compose([
             transforms.RandomResizedCrop(512, scale=(0.8, 1.0)),
             transforms.RandomRotation(50,fill=1),
-            # transforms.RandomResizedCrop((512,512)),
-            # transforms.Resize((512,512)),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
+            transforms.ColorJitter(brightness=0.2, contrast=0.3, saturation=0.1),  # Ajustes de iluminação
             transforms.ToTensor(),  # Converte para tensor
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalização estatística
         ])
 
     def _opencv_preprocessing(self, image):
