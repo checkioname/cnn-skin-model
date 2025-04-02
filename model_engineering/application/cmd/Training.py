@@ -76,22 +76,6 @@ class Training():
                 recall_metric.update(pred, y)
                 f1_metric.update(pred, y)
 
-                # adicionar gradcam
-                if i == 0:
-                    target_layer = self.model.layers[-1].blocks[-1].norm1  # camada swin
-                
-                    gradcam = GradCAM(self.model, target_layer)
-                    gradcam_maps = []
-                    for img in X[:3]:
-                        gradcam_maps.append(gradcam.generate(img.unsqueeze(0)))
-
-                    for j in range(3):
-                        img = (X[j].cpu().numpy().transpose(1, 2, 0) * 255).astype(np.uint8)
-                        heatmap = gradcam.overlay_gradcam(img, gradcam_maps[j])
-                        heatmap = heatmap.transpose(2, 0, 1)  # transformando para C,H,W
-                        self.writer.add_image(f'GradCAM/Image_{j}', heatmap, epoch)
-                    gradcam.remove_hooks()
-        
             #perda média
             test_loss /= num_batches
 
