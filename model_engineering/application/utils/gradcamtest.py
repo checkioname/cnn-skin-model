@@ -11,6 +11,22 @@ import torch
 import torchvision.transforms as transforms
 from torchvision import models
 
+import matplotlib.pyplot as plt
+from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import show_cam_on_image
+from torchvision.models import resnet50
+
+
+
+import matplotlib.pyplot as plt
+from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import show_cam_on_image
+from torchvision.models import resnet50
+import cv2
+import numpy as np 
+
 # Load an image and preprocess it
 def preprocess_image(img_path):
     img = cv2.imread(img_path, cv2.IMREAD_COLOR)
@@ -20,89 +36,41 @@ def preprocess_image(img_path):
     img = img.unsqueeze(0)  # Add batch dimension
     return img
 
-# Function to get the class label
-def get_class_label(preds):
-    _, class_index = torch.max(preds, 1)
-    return class_index.item()
 
-def get_conv_layer(model, conv_layer_name):
-    for name, layer in model.named_modules():
-        if name == conv_layer_name:
-            return layer
-    raise ValueError(f"Layer '{conv_layer_name}' not found in the model.")
-
-# Function to generate Grad-CAM heatmap
-def compute_gradcam(model, img_tensor, class_index, conv_layer_name="features.7"):
-    conv_layer = get_conv_layer(model, conv_layer_name)
-
-    # Forward hook to store activations
-    activations = None
-    def forward_hook(module, input, output):
-        nonlocal activations
-        activations = output
-
-    hook = conv_layer.register_forward_hook(forward_hook)
-
-    # Compute gradients
-    img_tensor.requires_grad_(True)
-    preds = model(img_tensor)
-    loss = preds[:, class_index]
-    model.zero_grad()
-    loss.backward()
-
-    # Get gradients
-    grads = img_tensor.grad.cpu().numpy()
-    pooled_grads = np.mean(grads, axis=(0, 2, 3))
-
-    # Remove the hook
-    hook.remove()
-
-    activations = activations.detach().cpu().numpy()[0]
-    for i in range(pooled_grads.shape[0]):
-        activations[i, ...] *= pooled_grads[i]
-
-    heatmap = np.mean(activations, axis=0)
-    heatmap = np.maximum(heatmap, 0)
-    heatmap /= np.max(heatmap)
-
-    return heatmap
-
-# Overlay heatmap on image
-def overlay_heatmap(img_path, heatmap, alpha=0.4):
-    img = cv2.imread(img_path, cv2.IMREAD_COLOR)
-    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
-    heatmap = np.uint8(255 * heatmap)
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-
-    superimposed_img = cv2.addWeighted(img, alpha, heatmap, 1 - alpha, 0)
-    return superimposed_img
 
 if __name__ == "__main__":
-    # Load a pretrained model (MobileNetV2)
+    img_path = "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/model_engineering/infrastructure/db/dermatite/COSTA SOARES, RHAYAN MIGUEL  (20240430090521504) 20240430091026337.jpg"
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pretrained_file_path = '/home/king/Documents/PsoriasisEngineering/cnn-skin-model/model_engineering/runs/ml-model-test-1742432834.2114196/model.pt' 
+
+    rgb_img = cv2.imread(img_path, 1)[:, :, ::-1]
+    rgb_img = cv2.resize(rgb_img, (512, 512))
+    rgb_img = np.float32(rgb_img) / 255
+
+
+    input_tensor = preprocess_image(img_path)
+
     setup = SetupModelSwin()
-    model, _, _, _ = setup.setup_model(device, pretrained_path=pretrained_file_path)
-    model.eval()
+    swin, _, _, _ = setup.setup_model(device, pretrained_path=pretrained_file_path)
+    target_layers_swin = [swin.features[-1][-1].norm1]
 
-    # Example Usage
+    # We have to specify the target we want to generate the CAM for.
+    targets = [ClassifierOutputTarget(0)]
 
-    img_path = "/home/king/Documents/PsoriasisEngineering/cnn-skin-model/model_engineering/infrastructure/db/dermatite/COSTA SOARES, RHAYAN MIGUEL  (20240430090521504) 20240430091026337.jpg"
-    img_tensor = preprocess_image(img_path)
+    # Construct the CAM object once, and then re-use it on many images.
+    with GradCAM(model=swin, target_layers=target_layers_swin) as cam:
+    # You can also pass aug_smooth=True and eigen_smooth=True, to apply smoothing.
+        grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
+        # In this example grayscale_cam has only one image in the batch:
+        grayscale_cam = grayscale_cam[0, :]
+        visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
+        # You can also get the model outputs without having to redo inference
+        model_outputs = cam.outputs
 
-    # Get model predictions
-    with torch.no_grad():
-        preds = model(img_tensor)
-    class_index = get_class_label(preds)
 
-    print(f"Predicted Class Index: {class_index}")
-
-    # Compute Grad-CAM heatmap
-    heatmap = compute_gradcam(model, img_tensor, class_index)
-
-    # Overlay heatmap on the original image
-    output_img = overlay_heatmap(img_path, heatmap)
-
-    # Save the heatmap
-    print("salvando imagem")
-    cv2.imwrite("heatmap.jpg", output_img)
+        plt.figure(figsize=(8, 8))
+        plt.imshow(visualization)
+        plt.axis('off')  # Remove os eixos para uma visualização mais limpa
+        plt.title("Grad-CAM Visualizatin")
+        plt.show()

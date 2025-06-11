@@ -1,10 +1,7 @@
-
-import sys
 import os
 
 import cv2
 import torch
-import torchvision
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader, Subset
 import numpy as np

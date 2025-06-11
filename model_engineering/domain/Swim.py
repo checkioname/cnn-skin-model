@@ -5,24 +5,21 @@ import torch
 
 class SetupModelSwin:
     def setup_model(self, device, dropout_prob=0.5, pretrained_path=None):
-        # Carregar o modelo SWIN Transformer pré-treinado
         swin = models.swin_v2_s(weights=models.Swin_V2_S_Weights.IMAGENET1K_V1)  # 'swin_transformer_tiny' pode ser alterado para outro tamanho
 
         # Congelar todas as camadas do transformer
         for param in swin.parameters():
             param.requires_grad = False
 
-        # Substituir a última camada fully connected (FC) para se adequar ao seu problema
         num_features = swin.head.in_features
         swin.head = nn.Sequential(
-            nn.Linear(num_features, 128),  # Camada intermediária
+            nn.Linear(num_features, 128),  
             nn.SELU(),
             nn.Dropout(p=dropout_prob),
-            nn.Linear(128, 1),  # Saída para classificação binária
+            nn.Linear(128, 1),  
             nn.Sigmoid()
         )
 
-        # Mover o modelo para o device (GPU/CPU)
         model = swin.to(device)
 
         if pretrained_path:

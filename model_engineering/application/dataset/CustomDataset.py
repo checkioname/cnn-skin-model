@@ -16,23 +16,27 @@ from torchvision import transforms
 
 class CustomDataset(Dataset):
     def __init__(self, csv_file, transform=None, target_transform=None):
+        print(f"[DEBUG] Lendo CSV de: {csv_file}")
+        if not os.path.exists(csv_file):
+            raise FileNotFoundError(f"Arquivo {csv_file} não encontrado.")
+
         self.data = read_csv(csv_file)
+        if self.data is None or "labels" not in self.data.columns:
+            raise ValueError("CSV inválido ou coluna 'labels' ausente.")
+
         self.transform = transform
         self.target_transform = target_transform
         self.labels = [str(label) for label in self.data['labels']]
         self.class_to_idx = {"psoriasis": 0, "dermatite": 1}
 
-
-
-
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        image_path = self.data.loc[int(idx), 'img_name']
+        image_path = self.data.iloc[int(idx)]['img_name']
         image = Image.open(image_path)
-        label = str(self.data.loc[int(idx), 'labels'])
-        
+        label = self.data.iloc[idx]['labels']
+            
         if self.transform:
             image = self.transform(image)
 
