@@ -1,0 +1,35 @@
+services:
+  train:
+    build: .
+    image: cnn-skin-model
+    container_name: cnn-skin-train
+    runtime: nvidia
+    shm_size: 8g
+    volumes:
+      - ./model_engineering:/app
+      - /path/para/suas/imagens:/data:ro
+    environment:
+      - DATA_DIR=/data
+      - CUDA_VISIBLE_DEVICES=0
+    command: ["-e", "50", "-m", "vgg16"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  preprocess:
+    build: .
+    image: cnn-skin-model
+    container_name: cnn-skin-preprocess
+    volumes:
+      - ./model_engineering:/app
+      - /path/para/suas/imagens:/data:ro
+      - ./output:/output
+    environment:
+      - DATA_DIR=/data
+    entrypoint: ["python", "scripts/generate_csv.py"]
+    profiles:
+      - setup

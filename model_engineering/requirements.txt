@@ -10,5 +10,5 @@ torchmetrics
 opencv-python
 pytest
 timm
-matplotlib=3.10.1
-grad-cam=1.5.5
+matplotlib==3.10.1
+grad-cam==1.5.5

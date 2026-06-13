@@ -3,7 +3,7 @@ import os
 import cv2
 import torch
 from sklearn.model_selection import StratifiedKFold
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 import numpy as np
 
 from torchvision import transforms
@@ -11,43 +11,30 @@ from torchvision.transforms.functional import to_pil_image
 from application.dataset.CustomDataset import CustomDataset
 
 
-class ImageProcessing():
-    def __init__(self):
-        # self.transforms = transforms.Compose([
-        #     transforms.Resize((1000,1000)),
-        #     transforms.RandomResizedCrop(512, scale=(0.8, 1.0)),
-        #     transforms.RandomRotation(50,fill=1),
-        #     transforms.RandomHorizontalFlip(p=0.5),
-        #     transforms.RandomVerticalFlip(p=0.5),
-        #     transforms.ToTensor(),  # Converte para tensor
-        # ])
-
-        # novo teste
-        self.transforms = transforms.Compose([
-            transforms.RandomResizedCrop(512, scale=(0.8, 1.0)),
-            transforms.RandomRotation(50,fill=1),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
-            transforms.ColorJitter(brightness=0.2, contrast=0.3, saturation=0.1),  # Ajustes de iluminação
-            transforms.ToTensor(),  # Converte para tensor
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalização estatística
-        ])
-
-    def _opencv_preprocessing(self, image):
+class OpenCVPreprocessing:
+    def __call__(self, image):
         image = np.array(image)
-
-        # Aplicar Denoise (Non-Local Means Denoising)
-        denoised = cv2.fastNlMeansDenoisingColored(image, None, 
-                                                   h=10,  # Força do filtro
-                                                   templateWindowSize=5, 
-                                                   searchWindowSize=19)
-        
-        
+        denoised = cv2.fastNlMeansDenoisingColored(
+            image, None, h=10, templateWindowSize=5, searchWindowSize=19
+        )
         gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
-        
         equalized = cv2.equalizeHist(gray)
         equalized_rgb = cv2.cvtColor(equalized, cv2.COLOR_GRAY2RGB)
         return to_pil_image(equalized_rgb)
+
+
+class ImageProcessing():
+    def __init__(self):
+        self.transforms = transforms.Compose([
+            OpenCVPreprocessing(),
+            transforms.RandomResizedCrop(512, scale=(0.3, 1.0)),
+            transforms.RandomRotation(50, fill=1),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.ColorJitter(brightness=0.2, contrast=0.3, saturation=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
 
     def pre_processing(self, fold, batch_size):
         ## Gerar o dataset estratificado
@@ -61,9 +48,16 @@ class ImageProcessing():
         custom_dataset = CustomDataset(csv_file='dataset.csv', transform=self.transforms, target_transform=None)
         print(f"TAMANHO DO DATASET: {len(custom_dataset.data)}")
 
-        #conjunto de treino e teste
-        train_loader = DataLoader(Subset(custom_dataset, train_index), batch_size=batch_size, shuffle=True, num_workers=1)
-        test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=True, num_workers=1)
+        train_subset = Subset(custom_dataset, train_index)
+
+        train_labels = [custom_dataset.labels[i] for i in train_index]
+        class_counts = {l: train_labels.count(l) for l in set(train_labels)}
+        total_train = len(train_labels)
+        weights = [total_train / (len(class_counts) * class_counts[l]) for l in train_labels]
+        train_sampler = WeightedRandomSampler(weights, total_train, replacement=True)
+
+        train_loader = DataLoader(train_subset, batch_size=batch_size, sampler=train_sampler, num_workers=1)
+        test_loader = DataLoader(Subset(custom_dataset, val_index), batch_size=batch_size, shuffle=False, num_workers=1)
 
         return train_loader, test_loader
 
@@ -80,13 +74,31 @@ class ImageProcessing():
     def generate_stratified_dataset(self, num_folds, transforms) -> None:
         kf = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=42)
 
-        # Criando DataLoader para o conjunto de treinamento
-        custom_dataset = CustomDataset(csv_file='dataset.csv', transform=transforms, target_transform=None)
+        csv_file = 'dataset.csv'
 
-        labels = custom_dataset.labels
-        for fold, (train_index, val_index) in enumerate(kf.split(range(len(labels)), labels)):
-            print(f"Fold {fold + 1}/{num_folds}")
+        custom_dataset = CustomDataset(csv_file=csv_file, transform=transforms, target_transform=None)
 
-            # Salvando os índices de treinamento e validação
-            torch.save(train_index, os.path.join(f'application/rag/content/index/train_index_fold{fold}.pt'))
-            torch.save(val_index, os.path.join(f'application/rag/content/index/val_index_fold{fold}.pt'))
+        df = custom_dataset.data.copy()
+        df['patient_id'] = custom_dataset.patient_ids
+
+        patient_df = df.groupby('patient_id')['labels'].first().reset_index()
+        labels = patient_df['labels'].tolist()
+
+        base_path = 'application/rag/content/index'
+        os.makedirs(base_path, exist_ok=True)
+
+        for fold, (train_patient_idx, val_patient_idx) in enumerate(
+            kf.split(patient_df['patient_id'], labels)
+        ):
+            train_patient_ids = set(patient_df.iloc[train_patient_idx]['patient_id'])
+            val_patient_ids = set(patient_df.iloc[val_patient_idx]['patient_id'])
+
+            train_index = df[df['patient_id'].isin(train_patient_ids)].index.tolist()
+            val_index = df[df['patient_id'].isin(val_patient_ids)].index.tolist()
+
+            print(f"Fold {fold + 1}/{num_folds} - "
+                  f"Train: {len(train_index)} amostras, "
+                  f"Val: {len(val_index)} amostras")
+
+            torch.save(train_index, os.path.join(base_path, f'train_index_fold{fold}.pt'))
+            torch.save(val_index, os.path.join(base_path, f'val_index_fold{fold}.pt'))
