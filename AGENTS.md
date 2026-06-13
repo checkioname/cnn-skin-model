@@ -36,17 +36,20 @@ python model_engineering/main.py -e 10 -m vgg16
 # Build image
 docker compose build
 
+# Build image
+docker compose build
+
 # Gerar CSV com paths relativos (imagens em /data/dermatite/, /data/psoriasis/)
-docker compose run --rm -v /caminho/das/imagens:/data preprocess /data -o dataset.csv
+docker compose run --rm -v /caminho/das/imagens:/data preprocess
 
-# Treinar (monta o CSV gerado e as imagens)
-docker compose run --rm \
-  -v /caminho/das/imagens:/data:ro \
-  -v ./model_engineering/dataset.csv:/app/dataset.csv:ro \
-  train -e 50 -m vgg16
+# Single GPU
+docker compose run --rm -v /caminho/das/imagens:/data:ro train
 
-# Ou em background
-docker compose up -d train
+# DataParallel (multi-GPU)
+docker compose --profile dp run --rm -v /caminho/das/imagens:/data:ro train-dp
+
+# DDP (3 GPUs)
+docker compose --profile ddp run --rm -v /caminho/das/imagens:/data:ro train-ddp
 ```
 
 ### Training Modes

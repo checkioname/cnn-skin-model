@@ -11,7 +11,7 @@ services:
     environment:
       - DATA_DIR=/data
       - CUDA_VISIBLE_DEVICES=0
-    command: ["-e", "50", "-m", "vgg16"]
+    command: ["main.py", "-e", "50", "-m", "vgg16"]
     deploy:
       resources:
         reservations:
@@ -20,16 +20,63 @@ services:
               count: 1
               capabilities: [gpu]
 
+  train-dp:
+    build: .
+    image: cnn-skin-model
+    container_name: cnn-skin-train-dp
+    runtime: nvidia
+    shm_size: 8g
+    volumes:
+      - ./model_engineering:/app
+      - /path/para/suas/imagens:/data:ro
+    environment:
+      - DATA_DIR=/data
+    command: ["main.py", "-e", "50", "-m", "resnet152", "--dp", "--batch-size", "64"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - dp
+
+  train-ddp:
+    build: .
+    image: cnn-skin-model
+    container_name: cnn-skin-train-ddp
+    runtime: nvidia
+    shm_size: 16g
+    volumes:
+      - ./model_engineering:/app
+      - /path/para/suas/imagens:/data:ro
+    environment:
+      - DATA_DIR=/data
+      - NCCL_DEBUG=INFO
+    entrypoint: ["torchrun", "--nproc_per_node=3"]
+    command: ["main.py", "-e", "50", "-m", "vgg16", "--batch-size", "64"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - ddp
+
   preprocess:
     build: .
     image: cnn-skin-model
     container_name: cnn-skin-preprocess
+    entrypoint: ["python"]
     volumes:
       - ./model_engineering:/app
       - /path/para/suas/imagens:/data:ro
       - ./output:/output
     environment:
       - DATA_DIR=/data
-    entrypoint: ["python", "scripts/generate_csv.py"]
+    command: ["scripts/generate_csv.py", "/data", "-o", "/app/dataset.csv"]
     profiles:
       - setup
