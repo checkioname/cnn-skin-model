@@ -14,4 +14,5 @@ COPY model_engineering/ .
 ENV DATA_DIR=/data
 ENV PYTHONPATH=/app
 
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["python"]
+CMD ["main.py", "-e", "50", "-m", "vgg16"]
