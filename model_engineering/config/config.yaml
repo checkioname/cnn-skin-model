@@ -20,10 +20,16 @@ data:
   fold: 1
   preprocessed_dir: ""  # se preenchido, usa imagens pré-processadas (pula OpenCV online)
 
-runs_repo:
-  path: ""          # caminho para o repositório psoriasis-runs (vazio = local runs/)
-  remote: "git@github.com:checkioname/cnn-skin-model-runs.git"
-  auto_push: false  # faz git push automático ao final do treino
+results_dir: ../cnn-skin-model-runs  # tudo versionado via Git LFS: mlflow/, tensorboard/, hydra/, metrics/
+
+hydra:
+  run:
+    dir: ${results_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: ${results_dir}/hydra/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job_logging:
+    root:
+      handlers: [console, file]
 
 seed: 42
 dp: false

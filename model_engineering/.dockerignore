@@ -5,6 +5,9 @@ __pycache__/
 
 /model_logs/ml-model-test-*/
 /runs/
+/outputs/
+/mlruns/
+/results/
 /infrastructure/
 
 

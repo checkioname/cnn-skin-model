@@ -2,8 +2,8 @@
 # Configura o repositório psoriasis-runs para versionamento de checkpoints/logs
 #
 # Uso:
-#   ./setup_runs_repo.sh                     # configura com caminho padrão
-#   ./setup_runs_repo.sh /caminho/alternativo
+#   ./setup_runs_repo.sh                               # configura com caminho padrão
+#   ./setup_runs_repo.sh /caminho/absoluto
 #
 # Pré-requisitos:
 #   1. gh auth login (ou token GITHUB_TOKEN)
@@ -11,35 +11,25 @@
 
 set -e
 
-REPO_NAME="psoriasis-runs"
 GITHUB_USER="${GITHUB_USER:-checkioname}"
-RUNS_DIR="${1:-$HOME/psoriasis-runs}"
+RUNS_DIR="${1:-$HOME/Documents/PsoriasisEngineering/cnn-skin-model-runs}"
 
 echo "=== Setup do Repositório de Runs ==="
-echo "Repo:  $GITHUB_USER/$REPO_NAME"
 echo "Local: $RUNS_DIR"
 echo ""
 
-# 1. Criar no GitHub
-if gh repo view "$GITHUB_USER/$REPO_NAME" &>/dev/null; then
-    echo "[OK] Repositório $GITHUB_USER/$REPO_NAME já existe no GitHub"
-else
-    echo "[...] Criando repositório $GITHUB_USER/$REPO_NAME no GitHub..."
-    gh repo create "$GITHUB_USER/$REPO_NAME" --private --description "Checkpoints e logs do modelo CNN psoríase"
-    echo "[OK] Repositório criado"
-fi
-
-# 2. Clonar localmente se não existir
+# 1. Clonar se não existir
 if [ -d "$RUNS_DIR/.git" ]; then
     echo "[OK] $RUNS_DIR já clonado"
 else
     echo "[...] Clonando para $RUNS_DIR..."
-    gh repo clone "$GITHUB_USER/$REPO_NAME" "$RUNS_DIR"
+    gh repo clone checkioname/cnn-skin-model-runs "$RUNS_DIR" 2>/dev/null || \
+        git clone git@github.com:checkioname/cnn-skin-model-runs.git "$RUNS_DIR"
 fi
 
 cd "$RUNS_DIR"
 
-# 3. Configurar Git LFS
+# 2. Configurar Git LFS
 echo "[...] Configurando Git LFS..."
 git lfs track "*.pt"
 git lfs track "*.pth"
@@ -53,20 +43,12 @@ if [ -f ".gitattributes" ]; then
     fi
 fi
 
-# 4. .gitkeep para manter a estrutura
-mkdir -p runs
-touch runs/.gitkeep
-git add runs/.gitkeep
-if ! git diff --cached --quiet; then
-    git commit -m "chore: estrutura inicial runs/"
-    git push
-fi
-
 echo ""
 echo "=== Setup concluído! ==="
 echo ""
-echo "Para usar no treino:"
-echo "  python main.py runs_repo.path=$RUNS_DIR runs_repo.auto_push=true"
+echo "O results_dir padrão já aponta para: $RUNS_DIR"
+echo "  MLflow:  mlflow ui --port 5000 --backend-store-uri $RUNS_DIR/mlflow"
+echo "  TB:      tensorboard --logdir $RUNS_DIR/tensorboard"
 echo ""
 echo "Para ver resultados localmente:"
-echo "  cd $RUNS_DIR && git pull && tensorboard --logdir ."
+echo "  cd $RUNS_DIR && git pull && tensorboard --logdir $RUNS_DIR"

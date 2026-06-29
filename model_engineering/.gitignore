@@ -272,6 +272,9 @@ pyrightconfig.json
 
 ## Model logs
 test_out/
+results/
+outputs/
+mlruns/
 runs/
 application/rag/content/runs/
 
@@ -281,5 +284,3 @@ infrastructure/db/
 
 ## data
 *.csv
-
-events.*

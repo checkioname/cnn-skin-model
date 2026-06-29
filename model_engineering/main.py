@@ -23,7 +23,7 @@ import hydra
 
 from application.preprocessing.PreProcessing import ImageProcessing, OpenCVPreprocessing
 from application.cmd.Training import Training
-from application.utils.runs_repo import RunsRepo
+import subprocess
 from application.dataset.CustomDataset import CustomDataset
 from domain.SetupModel import SetupModel
 
@@ -102,9 +102,14 @@ def save_model_checkpoint(model, optimizer, epoch, save_path):
     mlflow.log_artifact(os.path.join(save_path, 'model.pt'))
 
 
-def save_training_metrics(metrics, save_path):
+def save_training_metrics(metrics, save_path, results_dir="results"):
     path = os.path.join(save_path, 'metrics.json')
     with open(path, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    metrics_copy = os.path.join(results_dir, "metrics",
+                                f"metrics_{metrics.get('model', 'unknown')}_{int(time.time())}.json")
+    os.makedirs(os.path.dirname(metrics_copy), exist_ok=True)
+    with open(metrics_copy, 'w') as f:
         json.dump(metrics, f, indent=2)
     print(f"Métricas salvas em: {path}")
     mlflow.log_artifact(path)
@@ -150,14 +155,11 @@ def _prepare_cam_sample(test_loader):
 def run_training(model, train_loader, test_loader, epochs, device, optimizer,
                  loss_fn, scheduler, model_name=None, cam_sample=None,
                  rank=0, world_size=1, parallelism="none",
-                 patience=7, min_delta=0.001, runs_repo=None,
-                 auto_push=False):
+                 patience=7, min_delta=0.001, results_dir=".."):
     cam_interval = max(1, epochs // 5)
-    timestamp = time.time()
-    if runs_repo and runs_repo.exists:
-        save_path = runs_repo.run_dir(model_name, int(timestamp))
-    else:
-        save_path = f"runs/ml-model-{model_name}-{int(timestamp)}"
+    timestamp = int(time.time())
+    save_path = os.path.join(results_dir, "tensorboard",
+                             f"ml-model-{model_name}-{timestamp}")
 
     writer = SummaryWriter(save_path) if rank == 0 else None
     start_time = time.time()
@@ -237,7 +239,7 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
             "avg_throughput": avg_img_per_sec,
         })
 
-        save_training_metrics(metrics, save_path)
+        save_training_metrics(metrics, save_path, results_dir=results_dir)
         writer.add_hparams({"model": model_name, "parallelism": parallelism},
                            {"final_test_loss": test_loss, "total_time": total_time})
 
@@ -254,14 +256,13 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
         print(f"  Recall:      {training.recall:.4f}")
         print(f"  Specificity: {training.specificity:.4f}")
         print(f"  Kappa:       {training.kappa:.4f}")
+        print(f"Resultados salvos em: {save_path}")
+        print(f"MLflow:  mlflow ui --port 5000 --backend-store-uri {results_dir}/mlflow")
+        print(f"TB:      tensorboard --logdir {results_dir}/tensorboard")
         print(f"{'='*40}")
 
         writer.flush()
         writer.close()
-
-    if rank == 0 and runs_repo and runs_repo.exists:
-        msg = f"feat: {model_name} {epoch + 1} épocas | early_stop={training.should_stop}"
-        runs_repo.commit_push(msg, push=auto_push)
 
     if dist.is_initialized():
         dist.destroy_process_group()
@@ -269,7 +270,7 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
     return metrics, training.should_stop
 
 
-def train_fold(cfg, fold, local_rank, world_size, runs_repo=None):
+def train_fold(cfg, fold, local_rank, world_size):
     device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
 
     dataset = ImageProcessing(preprocessed_dir=cfg.data.preprocessed_dir or None)
@@ -301,13 +302,12 @@ def train_fold(cfg, fold, local_rank, world_size, runs_repo=None):
             model = nn.parallel.DistributedDataParallel(model)
             parallelism = "DDP (CPU)"
 
-    auto_push = getattr(cfg.runs_repo, 'auto_push', False)
     metrics, early_stopped = run_training(
         model, train_loader, test_loader, cfg.training.epochs, device, optimizer,
         loss_fn, scheduler, model_name=cfg.model, cam_sample=cam_sample,
         rank=local_rank, world_size=world_size, parallelism=parallelism,
         patience=cfg.training.patience, min_delta=cfg.training.min_delta,
-        runs_repo=runs_repo, auto_push=auto_push,
+        results_dir=cfg.results_dir,
     )
     metrics["fold"] = fold
     return metrics
@@ -317,11 +317,12 @@ def train_fold(cfg, fold, local_rank, world_size, runs_repo=None):
 def main(cfg: DictConfig):
     set_seed(cfg.seed)
 
-    runs_repo = None
-    if cfg.runs_repo.path:
-        runs_repo = RunsRepo(cfg.runs_repo.path)
-        remote_url = cfg.runs_repo.remote if cfg.runs_repo.remote else None
-        runs_repo.init_if_needed(remote_url)
+    results_dir = cfg.results_dir
+    os.makedirs(os.path.join(results_dir, "mlflow"), exist_ok=True)
+    os.makedirs(os.path.join(results_dir, "tensorboard"), exist_ok=True)
+    os.makedirs(os.path.join(results_dir, "metrics"), exist_ok=True)
+
+    mlflow.set_tracking_uri(os.path.join(results_dir, "mlflow"))
 
     mlflow.set_experiment(f"cnn-skin-{cfg.model}")
 
@@ -335,13 +336,25 @@ def main(cfg: DictConfig):
         dataset_full.log_to_mlflow()
         local_rank, world_size = setup_ddp()
 
-        metrics = train_fold(cfg, cfg.data.fold, local_rank, world_size,
-                             runs_repo=runs_repo)
+        metrics = train_fold(cfg, cfg.data.fold, local_rank, world_size)
 
         if is_main_process():
+            results_dir_abs = os.path.abspath(results_dir)
             print(f"\n{'='*40}")
             print(f"Fold {cfg.data.fold} concluido")
+            print(f"Resultados salvos em: {results_dir_abs}")
+            print(f"MLflow:  mlflow ui --port 5000 --backend-store-uri {results_dir}/mlflow")
+            print(f"TB:      tensorboard --logdir {results_dir}/tensorboard")
             print(f"{'='*40}\n")
+
+            try:
+                subprocess.run(["git", "add", "-A"], cwd=results_dir_abs, capture_output=True)
+                subprocess.run(
+                    ["git", "commit", "-m", f"feat: {cfg.model} fold {cfg.data.fold}"],
+                    cwd=results_dir_abs, capture_output=True,
+                )
+            except Exception:
+                pass
 
     if dist.is_initialized():
         dist.destroy_process_group()

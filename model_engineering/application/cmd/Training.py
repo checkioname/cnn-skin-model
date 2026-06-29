@@ -66,6 +66,7 @@ class Training():
         self.batch_times = []
         self.throughputs = []
         self._epoch_start = None
+        self.batch_timings = []  # list of dicts: data_s, forward_s, backward_s, batch_s
         self.accuracy = 0.0
         self.precision = 0.0
         self.recall = 0.0
@@ -84,17 +85,24 @@ class Training():
 
         self._epoch_start = time.time()
         num_batches = len(self.trainloader)
+        epoch_timings = []
+        last_batch_end = self._epoch_start
         for batch, (X, y) in enumerate(self.trainloader):
+            t_data_end = time.time()
+            data_s = t_data_end - last_batch_end
+
             X, y = X.to(device), y.to(device)
 
-            batch_start = time.time()
             optimizer.zero_grad()
 
+            t_fwd_start = time.time()
             with autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=torch.cuda.is_available()):
                 pred = self.model(X)
                 pred = pred.squeeze(1)
                 loss = loss_fn(pred, y)
+            t_fwd_end = time.time()
 
+            t_bwd_start = time.time()
             if self.scaler:
                 self.scaler.scale(loss).backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -104,9 +112,17 @@ class Training():
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 optimizer.step()
+            t_bwd_end = time.time()
 
-            batch_time = time.time() - batch_start
+            batch_time = t_bwd_end - t_data_end
             self.batch_times.append(batch_time)
+            epoch_timings.append({
+                'data_s': data_s,
+                'forward_s': t_fwd_end - t_fwd_start,
+                'backward_s': t_bwd_end - t_bwd_start,
+                'batch_s': batch_time,
+            })
+            last_batch_end = t_bwd_end
 
             if self.rank == 0 and batch % 100 == 0:
                 current = batch * len(X) * self.world_size
@@ -114,10 +130,15 @@ class Training():
                 batches_done = batch + 1
                 if batches_done > 0:
                     eta_sec = (elapsed / batches_done) * (num_batches - batches_done)
+                    t = epoch_timings[-1]
                     print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]  "
-                          f"ETA: {eta_sec:.0f}s")
+                          f"ETA: {eta_sec:.0f}s  "
+                          f"[data:{t['data_s']*1000:.0f}ms "
+                          f"fwd:{t['forward_s']*1000:.0f}ms "
+                          f"bwd:{t['backward_s']*1000:.0f}ms]")
+        self.batch_timings.append(epoch_timings)
 
-        epoch_time = time.time() - epoch_start
+        epoch_time = time.time() - self._epoch_start
         self.epoch_times.append(epoch_time)
 
         if self.rank == 0:
@@ -125,6 +146,20 @@ class Training():
             self.throughputs.append(throughput)
             self.writer.add_scalar("Time/epoch", epoch_time, epoch)
             self.writer.add_scalar("Throughput/img_per_sec", throughput, epoch)
+
+        if self.rank == 0 and epoch_timings:
+            data_avg = sum(t['data_s'] for t in epoch_timings) / len(epoch_timings) * 1000
+            fwd_avg = sum(t['forward_s'] for t in epoch_timings) / len(epoch_timings) * 1000
+            bwd_avg = sum(t['backward_s'] for t in epoch_timings) / len(epoch_timings) * 1000
+            print(f"  Timing por batch (media): "
+                  f"data={data_avg:.0f}ms | "
+                  f"forward={fwd_avg:.0f}ms | "
+                  f"backward={bwd_avg:.0f}ms | "
+                  f"total={data_avg+fwd_avg+bwd_avg:.0f}ms")
+            self.writer.add_scalar("Timing/data_ms", data_avg, epoch)
+            self.writer.add_scalar("Timing/forward_ms", fwd_avg, epoch)
+            self.writer.add_scalar("Timing/backward_ms", bwd_avg, epoch)
+            self.writer.add_scalar("Timing/batch_total_ms", data_avg + fwd_avg + bwd_avg, epoch)
 
         for callback in self.callbacks:
             callback.on_epoch(epoch, self.model, loss)

@@ -4,7 +4,7 @@ Avaliação detalhada de um modelo treinado com métricas acadêmicas e
 interpretabilidade (Captum + GradCAM).
 
 Uso:
-    python evaluate.py model=vgg16 checkpoint=runs/ml-model-xxx/model.pt
+    python evaluate.py model=vgg16 checkpoint=results/tensorboard/ml-model-vgg16-xxx/model.pt
 """
 import sys
 import os
