@@ -4,7 +4,7 @@ import torch
 import torch.distributed as dist
 import mlflow
 from torch.cuda.amp import autocast, GradScaler
-from application.callbacks import EarlyStopping
+from application.callbacks.EarlyStopping import EarlyStopping
 from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC, MatthewsCorrCoef, Specificity
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
