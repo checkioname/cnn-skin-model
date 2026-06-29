@@ -11,6 +11,28 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
 
 
+def _grid_to_figure(images, labels=None):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    n = min(len(images), 8)
+    cols = 4
+    rows = (n + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 3))
+    axes = axes.flatten() if rows * cols > 1 else [axes]
+    for i in range(n):
+        img = images[i].permute(1, 2, 0).numpy()
+        img = (img - img.min()) / (img.max() - img.min() + 1e-8)
+        axes[i].imshow(img)
+        axes[i].axis("off")
+        if labels is not None:
+            axes[i].set_title(str(labels[i].item()))
+    for i in range(n, len(axes)):
+        axes[i].axis("off")
+    plt.tight_layout()
+    return fig
+
+
 TARGET_LAYERS = {
     'vgg16':     lambda m: [m.features[-1]],
     'resnet152': lambda m: [m.layer4[-1]],
@@ -37,7 +59,7 @@ class Training():
         self.cam_interval = cam_interval
         self.rank = rank
         self.world_size = world_size
-        self.scaler = GradScaler()
+        self.scaler = GradScaler() if torch.cuda.is_available() else None
         self.early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
 
         self.epoch_times = []
@@ -58,15 +80,20 @@ class Training():
             batch_start = time.time()
             optimizer.zero_grad()
 
-            with autocast(device_type='cuda', enabled=self.world_size > 0):
+            with autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=torch.cuda.is_available()):
                 pred = self.model(X)
                 pred = pred.squeeze(1)
                 loss = loss_fn(pred, y)
 
-            self.scaler.scale(loss).backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            self.scaler.step(optimizer)
-            self.scaler.update()
+            if self.scaler:
+                self.scaler.scale(loss).backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.scaler.step(optimizer)
+                self.scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                optimizer.step()
 
             batch_time = time.time() - batch_start
             self.batch_times.append(batch_time)
@@ -173,11 +200,27 @@ class Training():
             mcc_metric.reset()
             specificity_metric.reset()
 
+            if epoch > 0:
+                self.log_sample_grid(epoch, device)
+
             self.early_stopping(test_loss)
             if self.early_stopping.early_stop:
                 self.should_stop = True
 
             return test_loss
+
+    def log_sample_grid(self, epoch, device):
+        if self.rank != 0:
+            return
+        import torchvision.utils as vutils
+        images, labels = next(iter(self.testloader))
+        images = images[:8].to(device)
+        grid = vutils.make_grid(images.cpu(), nrow=4, normalize=True, scale_each=True)
+        self.writer.add_image("samples/preprocessed", grid, epoch)
+        mlflow.log_figure(
+            _grid_to_figure(images.cpu(), labels[:8].cpu()),
+            f"samples_epoch_{epoch}.png"
+        )
 
     def visualize_gradcam(self, epoch, device):
         if self.rank != 0 or self.cam_sample is None:

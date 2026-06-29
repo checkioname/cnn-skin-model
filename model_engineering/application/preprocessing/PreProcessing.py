@@ -102,16 +102,17 @@ class ImageProcessing():
             val_subset, num_replicas=world_size, rank=rank, shuffle=False
         ) if world_size > 1 and dist.is_initialized() else None
 
+        pin = torch.cuda.is_available()
         train_loader = DataLoader(
             train_subset, batch_size=batch_size,
             sampler=train_sampler, num_workers=num_workers,
-            pin_memory=True, prefetch_factor=4,
+            pin_memory=pin, prefetch_factor=4,
             persistent_workers=num_workers > 0,
         )
         test_loader = DataLoader(
             val_subset, batch_size=batch_size,
             sampler=test_sampler, shuffle=test_sampler is None,
-            num_workers=num_workers, pin_memory=True,
+            num_workers=num_workers, pin_memory=pin,
             prefetch_factor=4, persistent_workers=num_workers > 0,
         )
 

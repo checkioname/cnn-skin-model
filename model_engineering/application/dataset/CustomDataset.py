@@ -1,6 +1,8 @@
 import os
 import re
+import hashlib
 import torch
+import mlflow
 from PIL import Image
 from pandas import read_csv
 from torch.utils.data import Dataset
@@ -34,6 +36,24 @@ class CustomDataset(Dataset):
             match = re.search(r'\((\d{15,})\)', str(path))
             patient_id = match.group(1) if match else str(path)
             self.patient_ids.append(patient_id)
+
+    @property
+    def dataset_hash(self):
+        caminhos = sorted(self.data['img_name'].tolist())
+        raw = "\n".join(caminhos).encode()
+        return hashlib.md5(raw).hexdigest()
+
+    @property
+    def class_distribution(self):
+        return self.data['labels'].value_counts().to_dict()
+
+    def log_to_mlflow(self):
+        mlflow.log_param("dataset_hash", self.dataset_hash)
+        mlflow.log_param("dataset_size", len(self.data))
+        dist = self.class_distribution
+        for cls, count in dist.items():
+            mlflow.log_param(f"class_{cls}_count", count)
+        mlflow.log_param("num_patients", len(set(self.patient_ids)))
 
     def __len__(self):
         return len(self.data)

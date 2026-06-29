@@ -24,6 +24,7 @@ import hydra
 from application.preprocessing.PreProcessing import ImageProcessing, OpenCVPreprocessing
 from application.cmd.Training import Training
 from application.utils.runs_repo import RunsRepo
+from application.dataset.CustomDataset import CustomDataset
 from domain.SetupModel import SetupModel
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -32,9 +33,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 def setup_ddp():
     if 'LOCAL_RANK' in os.environ:
         local_rank = int(os.environ['LOCAL_RANK'])
-        dist.init_process_group(backend='nccl')
-        torch.cuda.set_device(local_rank)
-        print(f"[DDP] Rank {local_rank} of {dist.get_world_size()}")
+        backend = 'nccl' if torch.cuda.is_available() else 'gloo'
+        dist.init_process_group(backend=backend)
+        if torch.cuda.is_available():
+            torch.cuda.set_device(local_rank)
+        print(f"[DDP] Rank {local_rank} of {dist.get_world_size()} (backend={backend})")
         return local_rank, dist.get_world_size()
     return 0, 1
 
@@ -52,6 +55,38 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
     random.seed(seed)
+
+
+def log_preprocessed_samples(dataset, writer, save_path, num_samples=8):
+    import torchvision.utils as vutils
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    indices = np.random.choice(len(dataset), min(num_samples, len(dataset)), replace=False)
+    images = []
+    for idx in indices:
+        img, _ = dataset[idx]
+        images.append(img.cpu())
+
+    grid = vutils.make_grid(images, nrow=4, normalize=True, scale_each=True)
+    writer.add_image("preprocessed/samples", grid, 0)
+
+    fig, axes = plt.subplots(2, 4, figsize=(16, 8))
+    axes = axes.flatten()
+    for i, idx in enumerate(indices):
+        if i >= 8:
+            break
+        img = images[i].permute(1, 2, 0).numpy()
+        img = (img - img.min()) / (img.max() - img.min() + 1e-8)
+        axes[i].imshow(img)
+        axes[i].axis("off")
+        axes[i].set_title(dataset.labels[idx])
+    plt.tight_layout()
+    plot_path = os.path.join(save_path, "preprocessed_samples.png")
+    fig.savefig(plot_path)
+    plt.close(fig)
+    mlflow.log_artifact(plot_path)
 
 
 def save_model_checkpoint(model, optimizer, epoch, save_path):
@@ -139,6 +174,10 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
                         cam_interval=cam_interval, rank=rank, world_size=world_size,
                         patience=patience, min_delta=min_delta)
 
+    if rank == 0:
+        train_dataset = train_loader.dataset.dataset if hasattr(train_loader.dataset, 'dataset') else train_loader.dataset
+        log_preprocessed_samples(train_dataset, writer, save_path)
+
     for epoch in range(epochs):
         if rank == 0:
             print(f"\nEpoch {epoch + 1}/{epochs}\n{'-' * 30}")
@@ -172,8 +211,8 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
             "avg_epoch_time_seconds": round(avg_epoch_time, 2),
             "total_images_processed": total_images,
             "avg_throughput_img_per_sec": round(avg_img_per_sec, 2),
-            "gpu_count": world_size if world_size > 1 else torch.cuda.device_count(),
-            "gpu_names": [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],
+            "gpu_count": world_size if world_size > 1 else (torch.cuda.device_count() if torch.cuda.is_available() else 0),
+            "gpu_names": [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())] if torch.cuda.is_available() else [],
             "early_stopped": bool(training.should_stop),
         }
 
@@ -235,11 +274,15 @@ def train_fold(cfg, fold, local_rank, world_size, runs_repo=None):
     )
 
     parallelism = "DDP" if world_size > 1 else ("DataParallel" if cfg.dp else "none")
-    if cfg.dp and world_size == 1 and torch.cuda.device_count() > 1:
+    if cfg.dp and world_size == 1 and torch.cuda.is_available() and torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
         parallelism = "DataParallel"
     elif world_size > 1:
-        model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+        if torch.cuda.is_available():
+            model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+        else:
+            model = nn.parallel.DistributedDataParallel(model)
+            parallelism = "DDP (CPU)"
 
     auto_push = getattr(cfg.runs_repo, 'auto_push', False)
     metrics, early_stopped = run_training(
@@ -265,11 +308,14 @@ def main(cfg: DictConfig):
 
     mlflow.set_experiment(f"cnn-skin-{cfg.model}")
 
+    dataset_full = CustomDataset(cfg.data.csv)
+
     with mlflow.start_run(run_name=f"fold-{cfg.data.fold}") as run:
         OmegaConf.save(cfg, "hydra_config.yaml")
         mlflow.log_artifact("hydra_config.yaml")
         mlflow.log_params(OmegaConf.to_container(cfg, resolve=True))
 
+        dataset_full.log_to_mlflow()
         local_rank, world_size = setup_ddp()
 
         metrics = train_fold(cfg, cfg.data.fold, local_rank, world_size,
