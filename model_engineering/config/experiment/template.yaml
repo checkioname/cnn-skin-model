@@ -1,9 +1,6 @@
-# Hydra experiment config — copie e ajuste os parâmetros
-# Uso: python main.py --config-name experiment/template
-
 defaults:
+  - model: vgg16
   - _self_
-  - model: vgg16           # vgg16, resnet152, vit, swin
 
 training:
   epochs: 50
@@ -12,8 +9,8 @@ training:
   lr: 0.01
   momentum: 0.9
   weight_decay: 0.0
-  optimizer: sgd           # sgd, adam
-  scheduler: plateau       # plateau, step, cosine
+  optimizer: sgd
+  scheduler: plateau
   patience: 7
   min_delta: 0.001
 
@@ -21,12 +18,12 @@ data:
   csv: dataset.csv
   folds: 4
   fold: 1
-  preprocessed_dir: ""     # "preprocessed" para pular OpenCV online
+  preprocessed_dir: ""
 
 runs_repo:
-  path: ""                 # ex: "$HOME/psoriasis-runs"
+  path: ""
   remote: "git@github.com:checkioname/cnn-skin-model-runs.git"
   auto_push: false
 
 seed: 42
-dp: false                  # true para DataParallel multi-GPU
+dp: false

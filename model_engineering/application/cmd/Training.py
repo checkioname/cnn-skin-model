@@ -1,11 +1,14 @@
 import time
+import numpy as np
 import torch
 import torch.distributed as dist
+import mlflow
 from torch.cuda.amp import autocast, GradScaler
 from application.callbacks import EarlyStopping
-from torchmetrics import Accuracy, Precision, Recall, F1Score
+from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC, MatthewsCorrCoef, Specificity
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
+from sklearn.metrics import confusion_matrix, cohen_kappa_score
 
 
 TARGET_LAYERS = {
@@ -23,10 +26,9 @@ def _unwrap_model(model):
 class Training():
     def __init__(self, trainloader, testloader, model, writer, callbacks,
                  model_name=None, cam_sample=None, cam_interval=5,
-                 rank=0, world_size=1) -> None:
+                 rank=0, world_size=1, patience=7, min_delta=0.001) -> None:
         self.trainloader = trainloader
         self.testloader = testloader
-
         self.model = model
         self.writer = writer
         self.should_stop = False
@@ -36,6 +38,7 @@ class Training():
         self.rank = rank
         self.world_size = world_size
         self.scaler = GradScaler()
+        self.early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
 
         self.epoch_times = []
         self.batch_times = []
@@ -89,15 +92,24 @@ class Training():
         precision_metric = Precision(task="binary").to(device)
         recall_metric = Recall(task="binary").to(device)
         f1_metric = F1Score(task="binary").to(device)
+        auroc_metric = AUROC(task="binary").to(device)
+        mcc_metric = MatthewsCorrCoef(task="binary").to(device)
+        specificity_metric = Specificity(task="binary").to(device)
 
         num_batches = len(self.testloader)
         self.model.eval()
         test_loss = 0
+
+        all_preds = []
+        all_labels = []
+        all_probs = []
+
         with torch.no_grad():
             for X, y in self.testloader:
                 X, y = X.to(device), y.to(device)
                 pred = self.model(X)
                 pred = pred.squeeze(1)
+                prob = torch.sigmoid(pred)
 
                 test_loss += loss_fn(pred, y).item()
 
@@ -105,6 +117,13 @@ class Training():
                 precision_metric.update(pred, y)
                 recall_metric.update(pred, y)
                 f1_metric.update(pred, y)
+                auroc_metric.update(prob, y)
+                mcc_metric.update(pred, y)
+                specificity_metric.update(pred, y)
+
+                all_preds.extend((prob > 0.5).cpu().numpy().astype(int))
+                all_labels.extend(y.cpu().numpy().astype(int))
+                all_probs.extend(prob.cpu().numpy())
 
             test_loss /= num_batches
 
@@ -112,6 +131,12 @@ class Training():
             precision = precision_metric.compute().item()
             recall = recall_metric.compute().item()
             f1_score = f1_metric.compute().item()
+            auroc = auroc_metric.compute().item()
+            mcc = mcc_metric.compute().item()
+            specificity = specificity_metric.compute().item()
+
+            cm = confusion_matrix(all_labels, all_preds)
+            kappa = cohen_kappa_score(all_labels, all_preds)
 
             if self.rank == 0:
                 self.writer.add_scalar("Loss/test", test_loss, epoch)
@@ -119,12 +144,39 @@ class Training():
                 self.writer.add_scalar("Precision/test", precision, epoch)
                 self.writer.add_scalar("Recall/test", recall, epoch)
                 self.writer.add_scalar("F1Score/test", f1_score, epoch)
-                print(f"Test:\n Accuracy: {accuracy:.2f}% | Avg loss: {test_loss:.8f}\n")
+                self.writer.add_scalar("AUROC/test", auroc, epoch)
+                self.writer.add_scalar("MCC/test", mcc, epoch)
+                self.writer.add_scalar("Specificity/test", specificity, epoch)
+                self.writer.add_scalar("Kappa/test", kappa, epoch)
+
+                mlflow.log_metrics({
+                    "test_loss": test_loss,
+                    "accuracy": accuracy,
+                    "precision": precision,
+                    "recall": recall,
+                    "f1": f1_score,
+                    "auroc": auroc,
+                    "mcc": mcc,
+                    "specificity": specificity,
+                    "kappa": kappa,
+                }, step=epoch)
+
+                print(f"Test:\n Accuracy: {accuracy:.2f}% | AUROC: {auroc:.4f} | MCC: {mcc:.4f} | "
+                      f"Loss: {test_loss:.8f}")
+                print(f" Confusion Matrix:\n{cm}")
 
             accuracy_metric.reset()
             precision_metric.reset()
             recall_metric.reset()
             f1_metric.reset()
+            auroc_metric.reset()
+            mcc_metric.reset()
+            specificity_metric.reset()
+
+            self.early_stopping(test_loss)
+            if self.early_stopping.early_stop:
+                self.should_stop = True
+
             return test_loss
 
     def visualize_gradcam(self, epoch, device):

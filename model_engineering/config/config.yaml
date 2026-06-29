@@ -1,6 +1,6 @@
 defaults:
-  - _self_
   - model: vgg16
+  - _self_
 
 training:
   epochs: 50

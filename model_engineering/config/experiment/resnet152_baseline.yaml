@@ -1,10 +1,29 @@
 defaults:
-  - _self_
   - model: resnet152
+  - _self_
 
 training:
   epochs: 50
   batch_size: 32
+  num_workers: 4
   lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0
   optimizer: sgd
   scheduler: plateau
+  patience: 7
+  min_delta: 0.001
+
+data:
+  csv: dataset.csv
+  folds: 4
+  fold: 1
+  preprocessed_dir: ""
+
+runs_repo:
+  path: ""
+  remote: "git@github.com:checkioname/cnn-skin-model-runs.git"
+  auto_push: false
+
+seed: 42
+dp: false
