@@ -266,16 +266,45 @@ writer.add_scalar("Loss/train", loss, epoch)
 
 ## Melhorias Futuras
 
-### Repositório de Resultados (Runs)
+### Repositório de Resultados (Runs) ✓
 
-Atualmente os checkpoints e logs do TensorBoard são salvos em `model_engineering/runs/` localmente no servidor. Para centralizar e versionar os resultados, recomenda-se:
+Checkpoints e logs podem ser salvos em um repositório Git LFS separado para versionamento centralizado.
 
-1. Criar um repositório separado (ex.: `psoriasis-runs`) com Git LFS para arquivos `.pt`
-2. No servidor, clonar esse repo e apontar o `save_path` e `SummaryWriter` para dentro dele
-3. Ao final do treino, fazer commit + push automático
-4. Localmente, puxar e abrir TensorBoard: `git pull && tensorboard --logdir runs/`
+#### Configuração
 
-Isso elimina rsync manual e mantém histórico de todas as execuções.
+```bash
+# Setup automático (cria repo GitHub + clone local + Git LFS)
+cd model_engineering
+bash setup_runs_repo.sh
+
+# Ou manual:
+# 1. gh repo create checkioname/psoriasis-runs --private
+# 2. gh repo clone checkioname/psoriasis-runs ~/psoriasis-runs
+# 3. cd ~/psoriasis-runs && git lfs track "*.pt" "*.pth" "*.pkl"
+```
+
+#### Uso no treino
+
+```bash
+# Salvar no repositório versionado + commit automático
+python main.py runs_repo.path=$HOME/psoriasis-runs runs_repo.auto_push=true
+
+# Salvar local (comportamento padrão)
+python main.py
+```
+
+#### Ver resultados localmente
+
+```bash
+cd ~/psoriasis-runs && git pull && tensorboard --logdir .
+```
+
+#### Como funciona
+
+- `RunsRepo` (`application/utils/runs_repo.py`) gerencia clone/init, commit e push
+- `main.py` detecta `runs_repo.path` na config Hydra e usa `runs_repo.run_dir()` para `save_path` e `SummaryWriter`
+- Ao final do treino (main process apenas), faz `git add -A && git commit -m "feat: ..." && git push`
+- Arquivos `.pt`, `.pth`, `.pkl` rastreados por Git LFS (binários grandes não poluem o repo)
 
 ### Aceleração Multi-GPU
 

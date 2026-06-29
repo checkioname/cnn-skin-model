@@ -14,6 +14,7 @@ application/rag/model_weights.pth
 model_engineering/preview_output/
 model_engineering/heatmap.jpg
 model_engineering/relatorio_dataset.txt
+model_engineering/.gitattributes
 model_engineering/mlruns/
 model_engineering/optuna_*.db
 model_engineering/cross_validation_results.json

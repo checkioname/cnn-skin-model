@@ -3,7 +3,6 @@
 
 import sys
 import os
-import argparse
 import time
 import json
 import psutil
@@ -15,24 +14,19 @@ from PIL import Image
 import torch
 import torch.distributed as dist
 import torch.nn as nn
+import mlflow
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
+from omegaconf import DictConfig, OmegaConf
+
+import hydra
 
 from application.preprocessing.PreProcessing import ImageProcessing, OpenCVPreprocessing
 from application.cmd.Training import Training
+from application.utils.runs_repo import RunsRepo
 from domain.SetupModel import SetupModel
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--epochs", required=True, type=int)
-    parser.add_argument("-m", "--model", required=True, choices=['vgg16', 'resnet152', 'vit', 'swin'])
-    parser.add_argument("--batch-size", default=32, type=int)
-    parser.add_argument("--num-workers", default=4, type=int)
-    parser.add_argument("--dp", action='store_true', help="Enable DataParallel")
-    return parser.parse_args()
 
 
 def setup_ddp():
@@ -49,6 +43,17 @@ def is_main_process():
     return not dist.is_initialized() or dist.get_rank() == 0
 
 
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
+
+
 def save_model_checkpoint(model, optimizer, epoch, save_path):
     raw_model = model.module if hasattr(model, 'module') else model
     if not os.path.exists(save_path):
@@ -59,6 +64,7 @@ def save_model_checkpoint(model, optimizer, epoch, save_path):
         'optimizer_state_dict': optimizer.state_dict(),
     }, os.path.join(save_path, 'model.pt'))
     print(f"Modelo salvo em: {save_path}")
+    mlflow.log_artifact(os.path.join(save_path, 'model.pt'))
 
 
 def save_training_metrics(metrics, save_path):
@@ -66,6 +72,7 @@ def save_training_metrics(metrics, save_path):
     with open(path, 'w') as f:
         json.dump(metrics, f, indent=2)
     print(f"Métricas salvas em: {path}")
+    mlflow.log_artifact(path)
 
 
 def monitor_resources():
@@ -85,67 +92,37 @@ def _prepare_cam_sample(test_loader):
     cv_img = cv2.imread(img_path)
     if cv_img is None:
         return None
-    cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-    h, w = cv_img.shape[:2]
-    crop = min(h, w)
-    y, x = (h - crop) // 2, (w - crop) // 2
-    cv_img = cv_img[y:y+crop, x:x+crop]
-    cv_img = cv2.resize(cv_img, (512, 512))
-    raw_np = cv_img.astype(np.float32) / 255.0
+    pil_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
 
-    fixed_transform = transforms.Compose([
-        OpenCVPreprocessing(),
+    spatial = transforms.Compose([
+        transforms.Resize(512),
+        transforms.CenterCrop(512),
+    ])
+    cropped = spatial(pil_img)
+
+    processed = OpenCVPreprocessing()(cropped)
+    raw_np = np.array(processed).astype(np.float32) / 255.0
+
+    to_tensor = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
-
-    pil_img = Image.fromarray(cv_img)
-    input_tensor = fixed_transform(pil_img).unsqueeze(0)
+    input_tensor = to_tensor(processed).unsqueeze(0)
 
     return raw_np, input_tensor
 
 
-def train_model(epochs, model_name, batch_size, num_workers, use_dp):
-    class_to_idx = {"psoriasis": 0, "dermatite": 1}
-    local_rank, world_size = setup_ddp()
-    device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
-
-    dataset = ImageProcessing()
-    train_loader, test_loader = dataset.pre_processing(
-        fold=1, batch_size=batch_size, num_workers=num_workers,
-        rank=local_rank, world_size=world_size
-    )
-
-    cam_sample = _prepare_cam_sample(test_loader) if is_main_process() else None
-
-    setup = SetupModel(model_name)
-    model, loss_fn, optimizer, scheduler = setup.setup_model(device)
-
-    if is_main_process():
-        print(f"\nGPUs disponiveis: {torch.cuda.device_count()}")
-        for i in range(torch.cuda.device_count()):
-            print(f"  GPU {i}: {torch.cuda.get_device_name(i)}")
-
-    parallelism = "DDP" if world_size > 1 else ("DataParallel" if use_dp else "none")
-    if use_dp and world_size == 1 and torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model)
-        parallelism = "DataParallel"
-        print(f"[DataParallel] usando {torch.cuda.device_count()} GPUs")
-    elif world_size > 1:
-        model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
-        print(f"[DDP] Rank {local_rank} pronto")
-
-    run_training(model, train_loader, test_loader, epochs, device, optimizer,
-                 loss_fn, scheduler, model_name=model_name, cam_sample=cam_sample,
-                 rank=local_rank, world_size=world_size, parallelism=parallelism)
-
-
 def run_training(model, train_loader, test_loader, epochs, device, optimizer,
                  loss_fn, scheduler, model_name=None, cam_sample=None,
-                 rank=0, world_size=1, parallelism="none"):
+                 rank=0, world_size=1, parallelism="none",
+                 patience=7, min_delta=0.001, runs_repo=None,
+                 auto_push=False):
     cam_interval = max(1, epochs // 5)
     timestamp = time.time()
-    save_path = f"runs/ml-model-test-{timestamp}"
+    if runs_repo and runs_repo.exists:
+        save_path = runs_repo.run_dir(model_name, int(timestamp))
+    else:
+        save_path = f"runs/ml-model-{model_name}-{int(timestamp)}"
 
     writer = SummaryWriter(save_path) if rank == 0 else None
     start_time = time.time()
@@ -159,7 +136,8 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
 
     training = Training(train_loader, test_loader, model, writer, None,
                         model_name=model_name, cam_sample=cam_sample,
-                        cam_interval=cam_interval, rank=rank, world_size=world_size)
+                        cam_interval=cam_interval, rank=rank, world_size=world_size,
+                        patience=patience, min_delta=min_delta)
 
     for epoch in range(epochs):
         if rank == 0:
@@ -169,30 +147,46 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
         training.visualize_gradcam(epoch, device)
         scheduler.step(test_loss)
 
+        if training.should_stop:
+            print(f"Early stopping ativado na época {epoch + 1}")
+            break
+
     total_time = time.time() - start_time
 
     if rank == 0:
         save_model_checkpoint(model, optimizer, epoch, save_path)
 
-        total_images = len(train_loader.dataset) * epochs
+        total_images = len(train_loader.dataset) * (epoch + 1)
         avg_img_per_sec = total_images / total_time if total_time > 0 else 0
-        avg_epoch_time = sum(training.epoch_times) / len(training.epoch_times) if training.epoch_times else 0
+        avg_epoch_time = (sum(training.epoch_times) / len(training.epoch_times)
+                          if training.epoch_times else 0)
 
         metrics = {
             "model": model_name,
             "parallelism": parallelism,
-            "epochs": epochs,
+            "epochs": epoch + 1,
             "total_time_seconds": round(total_time, 2),
             "avg_epoch_time_seconds": round(avg_epoch_time, 2),
             "total_images_processed": total_images,
             "avg_throughput_img_per_sec": round(avg_img_per_sec, 2),
             "gpu_count": world_size if world_size > 1 else torch.cuda.device_count(),
             "gpu_names": [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],
+            "early_stopped": bool(training.should_stop),
         }
 
         if training.throughputs:
             metrics["avg_epoch_throughput"] = round(np.mean(training.throughputs), 2)
             metrics["peak_throughput"] = round(max(training.throughputs), 2)
+
+        mlflow.log_params({
+            "model": model_name,
+            "epochs": epoch + 1,
+            "early_stopped": training.should_stop,
+        })
+        mlflow.log_metrics({
+            "total_time_seconds": total_time,
+            "avg_throughput": avg_img_per_sec,
+        })
 
         save_training_metrics(metrics, save_path)
         writer.add_hparams({"model": model_name, "parallelism": parallelism},
@@ -206,22 +200,80 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
         writer.flush()
         writer.close()
 
+    if rank == 0 and runs_repo and runs_repo.exists:
+        msg = f"feat: {model_name} {epoch + 1} épocas | early_stop={training.should_stop}"
+        runs_repo.commit_push(msg, push=auto_push)
+
+    if dist.is_initialized():
+        dist.destroy_process_group()
+
+    return metrics, training.should_stop
+
+
+def train_fold(cfg, fold, local_rank, world_size, runs_repo=None):
+    device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
+
+    dataset = ImageProcessing()
+    train_loader, test_loader = dataset.pre_processing(
+        fold=fold, batch_size=cfg.training.batch_size,
+        num_workers=cfg.training.num_workers,
+        rank=local_rank, world_size=world_size
+    )
+
+    cam_sample = _prepare_cam_sample(test_loader) if is_main_process() else None
+
+    setup = SetupModel(cfg.model)
+    model, loss_fn, optimizer, scheduler = setup.setup_model(device)
+
+    parallelism = "DDP" if world_size > 1 else ("DataParallel" if cfg.dp else "none")
+    if cfg.dp and world_size == 1 and torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
+        parallelism = "DataParallel"
+    elif world_size > 1:
+        model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+
+    auto_push = getattr(cfg.runs_repo, 'auto_push', False)
+    metrics, early_stopped = run_training(
+        model, train_loader, test_loader, cfg.training.epochs, device, optimizer,
+        loss_fn, scheduler, model_name=cfg.model, cam_sample=cam_sample,
+        rank=local_rank, world_size=world_size, parallelism=parallelism,
+        patience=cfg.training.patience, min_delta=cfg.training.min_delta,
+        runs_repo=runs_repo, auto_push=auto_push,
+    )
+    metrics["fold"] = fold
+    return metrics
+
+
+@hydra.main(version_base=None, config_path="config", config_name="config")
+def main(cfg: DictConfig):
+    set_seed(cfg.seed)
+
+    runs_repo = None
+    if cfg.runs_repo.path:
+        runs_repo = RunsRepo(cfg.runs_repo.path)
+        remote_url = cfg.runs_repo.remote if cfg.runs_repo.remote else None
+        runs_repo.init_if_needed(remote_url)
+
+    mlflow.set_experiment(f"cnn-skin-{cfg.model}")
+
+    with mlflow.start_run(run_name=f"fold-{cfg.data.fold}") as run:
+        OmegaConf.save(cfg, "hydra_config.yaml")
+        mlflow.log_artifact("hydra_config.yaml")
+        mlflow.log_params(OmegaConf.to_container(cfg, resolve=True))
+
+        local_rank, world_size = setup_ddp()
+
+        metrics = train_fold(cfg, cfg.data.fold, local_rank, world_size,
+                             runs_repo=runs_repo)
+
+        if is_main_process():
+            print(f"\n{'='*40}")
+            print(f"Fold {cfg.data.fold} concluido")
+            print(f"{'='*40}\n")
+
     if dist.is_initialized():
         dist.destroy_process_group()
 
 
 if __name__ == "__main__":
-    seed = 42
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
-
-    args = parse_arguments()
-    torch.backends.cudnn.benchmark = not args.dp
-
-    train_model(args.epochs, args.model, args.batch_size, args.num_workers, args.dp)
+    main()
