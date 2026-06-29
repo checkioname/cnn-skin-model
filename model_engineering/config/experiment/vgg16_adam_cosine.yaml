@@ -1,0 +1,10 @@
+defaults:
+  - _self_
+  - model: vgg16
+
+training:
+  epochs: 50
+  batch_size: 32
+  lr: 0.001
+  optimizer: adam
+  scheduler: cosine
