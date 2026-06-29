@@ -65,6 +65,15 @@ class Training():
         self.epoch_times = []
         self.batch_times = []
         self.throughputs = []
+        self._epoch_start = None
+        self.accuracy = 0.0
+        self.precision = 0.0
+        self.recall = 0.0
+        self.f1 = 0.0
+        self.auroc = 0.0
+        self.mcc = 0.0
+        self.specificity = 0.0
+        self.kappa = 0.0
 
     def train(self, loss_fn, optimizer, device, epoch):
         size = len(self.trainloader.dataset)
@@ -73,7 +82,8 @@ class Training():
         if self.world_size > 1 and hasattr(self.trainloader.sampler, 'set_epoch'):
             self.trainloader.sampler.set_epoch(epoch)
 
-        epoch_start = time.time()
+        self._epoch_start = time.time()
+        num_batches = len(self.trainloader)
         for batch, (X, y) in enumerate(self.trainloader):
             X, y = X.to(device), y.to(device)
 
@@ -100,7 +110,12 @@ class Training():
 
             if self.rank == 0 and batch % 100 == 0:
                 current = batch * len(X) * self.world_size
-                print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]")
+                elapsed = time.time() - self._epoch_start
+                batches_done = batch + 1
+                if batches_done > 0:
+                    eta_sec = (elapsed / batches_done) * (num_batches - batches_done)
+                    print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]  "
+                          f"ETA: {eta_sec:.0f}s")
 
         epoch_time = time.time() - epoch_start
         self.epoch_times.append(epoch_time)
@@ -154,41 +169,42 @@ class Training():
 
             test_loss /= num_batches
 
-            accuracy = accuracy_metric.compute().item() * 100
-            precision = precision_metric.compute().item()
-            recall = recall_metric.compute().item()
-            f1_score = f1_metric.compute().item()
-            auroc = auroc_metric.compute().item()
-            mcc = mcc_metric.compute().item()
-            specificity = specificity_metric.compute().item()
+            self.accuracy = accuracy_metric.compute().item() * 100
+            self.precision = precision_metric.compute().item()
+            self.recall = recall_metric.compute().item()
+            self.f1 = f1_metric.compute().item()
+            self.auroc = auroc_metric.compute().item()
+            self.mcc = mcc_metric.compute().item()
+            self.specificity = specificity_metric.compute().item()
 
             cm = confusion_matrix(all_labels, all_preds)
-            kappa = cohen_kappa_score(all_labels, all_preds)
+            self.kappa = cohen_kappa_score(all_labels, all_preds)
 
             if self.rank == 0:
                 self.writer.add_scalar("Loss/test", test_loss, epoch)
-                self.writer.add_scalar("Accuracy/test", accuracy, epoch)
-                self.writer.add_scalar("Precision/test", precision, epoch)
-                self.writer.add_scalar("Recall/test", recall, epoch)
-                self.writer.add_scalar("F1Score/test", f1_score, epoch)
-                self.writer.add_scalar("AUROC/test", auroc, epoch)
-                self.writer.add_scalar("MCC/test", mcc, epoch)
-                self.writer.add_scalar("Specificity/test", specificity, epoch)
-                self.writer.add_scalar("Kappa/test", kappa, epoch)
+                self.writer.add_scalar("Accuracy/test", self.accuracy, epoch)
+                self.writer.add_scalar("Precision/test", self.precision, epoch)
+                self.writer.add_scalar("Recall/test", self.recall, epoch)
+                self.writer.add_scalar("F1Score/test", self.f1, epoch)
+                self.writer.add_scalar("AUROC/test", self.auroc, epoch)
+                self.writer.add_scalar("MCC/test", self.mcc, epoch)
+                self.writer.add_scalar("Specificity/test", self.specificity, epoch)
+                self.writer.add_scalar("Kappa/test", self.kappa, epoch)
 
                 mlflow.log_metrics({
                     "test_loss": test_loss,
-                    "accuracy": accuracy,
-                    "precision": precision,
-                    "recall": recall,
-                    "f1": f1_score,
-                    "auroc": auroc,
-                    "mcc": mcc,
-                    "specificity": specificity,
-                    "kappa": kappa,
+                    "accuracy": self.accuracy,
+                    "precision": self.precision,
+                    "recall": self.recall,
+                    "f1": self.f1,
+                    "auroc": self.auroc,
+                    "mcc": self.mcc,
+                    "specificity": self.specificity,
+                    "kappa": self.kappa,
                 }, step=epoch)
 
-                print(f"Test:\n Accuracy: {accuracy:.2f}% | AUROC: {auroc:.4f} | MCC: {mcc:.4f} | "
+                print(f"Test:\n Accuracy: {self.accuracy:.2f}% | AUROC: {self.auroc:.4f} | MCC: {self.mcc:.4f} | "
+                      f"F1: {self.f1:.4f} | Precision: {self.precision:.4f} | Recall: {self.recall:.4f} | "
                       f"Loss: {test_loss:.8f}")
                 print(f" Confusion Matrix:\n{cm}")
 

@@ -180,7 +180,14 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
 
     for epoch in range(epochs):
         if rank == 0:
-            print(f"\nEpoch {epoch + 1}/{epochs}\n{'-' * 30}")
+            if epoch > 0 and len(training.epoch_times) > 0:
+                avg_epoch = sum(training.epoch_times) / len(training.epoch_times)
+                remaining = (epochs - epoch) * avg_epoch
+                print(f"\nEpoch {epoch + 1}/{epochs}  "
+                      f"| media epoca: {avg_epoch:.1f}s  "
+                      f"| ETA: {remaining:.0f}s ({remaining/60:.1f}min)")
+            else:
+                print(f"\nEpoch {epoch + 1}/{epochs}\n{'-' * 30}")
         training.train(loss_fn, optimizer, device, epoch)
         test_loss = training.test(loss_fn, epoch, device)
         training.visualize_gradcam(epoch, device)
@@ -235,8 +242,18 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
                            {"final_test_loss": test_loss, "total_time": total_time})
 
         print(f"\n{'='*40}")
+        print(f"{'='*40}")
         print(f"Treinamento concluido em {total_time:.1f}s")
         print(f"Throughput medio: {avg_img_per_sec:.1f} imagens/s")
+        print(f"Metricas finais:")
+        print(f"  Accuracy:    {training.accuracy:.2f}%")
+        print(f"  AUROC:       {training.auroc:.4f}")
+        print(f"  MCC:         {training.mcc:.4f}")
+        print(f"  F1 Score:    {training.f1:.4f}")
+        print(f"  Precision:   {training.precision:.4f}")
+        print(f"  Recall:      {training.recall:.4f}")
+        print(f"  Specificity: {training.specificity:.4f}")
+        print(f"  Kappa:       {training.kappa:.4f}")
         print(f"{'='*40}")
 
         writer.flush()
