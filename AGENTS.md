@@ -27,7 +27,7 @@ pytest model_engineering/EarlyStopping_test.py::test_initialization
 pytest -v model_engineering/
 
 # Train model (example)
-python model_engineering/main.py -e 10 -m vgg16
+python model_engineering/main.py model=vgg16 training.epochs=10
 ```
 
 ### Docker
@@ -65,14 +65,32 @@ python main.py -e 50 -m resnet152 --dp --batch-size 64 --num-workers 8
 torchrun --nproc_per_node=3 main.py -e 50 -m vgg16 --batch-size 64 --num-workers 8
 ```
 
-#### Flags
-| Flag | Default | Descrição |
+
+#### Configurações (Hydra)
+
+```bash
+# Todos os parâmetros via config.yaml ou linha de comando:
+python main.py model=vgg16 training.epochs=50 training.scheduler=cosine
+```
+
+| Parâmetro | Default | Descrição |
 |---|---|---|
-| `-e` | obrigatório | Número de épocas |
-| `-m` | obrigatório | Arquitetura: vgg16, resnet152, vit, swin |
-| `--batch-size` | 32 | Tamanho do batch (por GPU) |
-| `--num-workers` | 4 | Workers do DataLoader |
-| `--dp` | off | Ativa DataParallel (multi-GPU single process) |
+| `model` | obrigatório | vgg16, resnet152, vit, swin |
+| `training.epochs` | 50 | Número de épocas |
+| `training.batch_size` | 32 | Batch size (por GPU em DDP) |
+| `training.num_workers` | 4 | Workers do DataLoader |
+| `training.lr` | 0.01 | Learning rate |
+| `training.optimizer` | sgd | sgd, adam |
+| `training.scheduler` | plateau | plateau, step, cosine |
+| `training.patience` | 7 | Patience do EarlyStopping |
+| `data.preprocessed_dir` | "" | Se preenchido, pula preprocessing online |
+| `runs_repo.path` | "" | Caminho para repo Git LFS de runs |
+| `dp` | false | DataParallel (multi-GPU single process) |
+
+#### Schedulers disponíveis
+- `plateau` — ReduceLROnPlateau (step com `test_loss`)
+- `step` — StepLR (step por época)
+- `cosine` — CosineAnnealingLR (T_max = epochs)
 
 #### Métricas salvas ao final do treino (`runs/*/metrics.json`)
 ```json
@@ -306,100 +324,36 @@ cd ~/psoriasis-runs && git pull && tensorboard --logdir .
 - Ao final do treino (main process apenas), faz `git add -A && git commit -m "feat: ..." && git push`
 - Arquivos `.pt`, `.pth`, `.pkl` rastreados por Git LFS (binários grandes não poluem o repo)
 
-### Aceleração Multi-GPU
 
-O treino atual é single-GPU. Para escalar para múltiplas GPUs:
 
-#### Gargalos Identificados
-
-| Gargalo | Estado Atual | Impacto |
-|---|---|---|
-| **DataLoader workers** | `num_workers=1` | CPU subutilizada, GPU espera dados |
-| **Mixed Precision (AMP)** | Código comentado/removido | Perde ~2x speedup em GPUs Turing+ |
-| **Batch size** | Fixo 32 | Não escala com mais GPUs |
-| **Paralelismo** | Sem `DataParallel`/`DDP` | Apenas 1 GPU utilizada |
-| **Prefetch** | Nenhum | Pipeline CPU-GPU não otimizado |
-| **Pin Memory** | Não configurado | Transferência CPU→GPU lenta |
-| **OpenCV Preprocessing** | CPU-bound por imagem | Deep Learning preprocessing (denoise+equalize) bloqueia DataLoader |
-| **Grad-CAM** | Executado toda época | Inferência extra que pode ser espaçada |
-
-#### Plano de Otimização
-
-**1. Baixo esforço / Alto impacto:**
-
-```python
-# DataLoader (PreProcessing.py)
-train_loader = DataLoader(..., batch_size=batch_size * num_gpus,
-                          num_workers=4, pin_memory=True, prefetch_factor=4)
-```
-
-- `num_workers=4`: paraleliza carregamento + preprocessing das imagens
-- `pin_memory=True`: acelera transferência CPU→GPU
-- `prefetch_factor=4`: pré-carrega batches enquanto GPU processa
-
-**2. Mixed Precision (AMP):**
-
-```python
-scaler = GradScaler()
-with autocast():
-    pred = self.model(X)
-    loss = loss_fn(pred, y)
-scaler.scale(loss).backward()
-scaler.step(optimizer)
-scaler.update()
-```
-
-Ativar AMP dá ~1.5-2x mais throughput em GPUs com Tensor Cores (RTX 30xx+, A-series, V100).
-
-**3. DistributedDataParallel (DDP) — Multi-GPU:**
+### Multi-GPU ✓
 
 ```bash
-# torchrun lida com init_process_group automaticamente
-torchrun --nproc_per_node=N main.py -e 50 -m vgg16
+# Single GPU (baseline)
+python main.py -e 50 -m vgg16
+
+# DataParallel (multi-GPU, single process)
+python main.py -e 50 -m resnet152 --dp --batch-size 64 --num-workers 8
+
+# DistributedDataParallel (multi-GPU, torchrun)
+torchrun --nproc_per_node=3 main.py -e 50 -m vgg16 --batch-size 64 --num-workers 8
 ```
 
-Mudanças no código:
-- `SetupModel._initialize_model`: após criar o modelo, wrap com `DDP(model)`
-- `Batch size`: escalar linearmente com número de GPUs (ex.: 32 por GPU → 128 com 4 GPUs)
-- `WeightedRandomSampler`: `DistributedSampler` substitui para evitar duplicação entre GPUs
-- `Loss`: usar `mean` reduction (já é o padrão do `BCELoss`)
+#### Otimizações aplicadas
+- **AMP** (`autocast` + `GradScaler`) no loop de treino
+- **DDP**: `DistributedSampler` + `DistributedDataParallel` via `torchrun`
+- **DataLoader**: `num_workers=4`, `pin_memory=True`, `prefetch_factor=4`, `persistent_workers=True`
+- **Grad-CAM espaçado**: executa a cada `epochs // 5` épocas
+- **Preprocessing offline**: opcional via `data.preprocessed_dir` (elimina CPU-bound do DataLoader)
 
-**4. Otimização do Preprocessing (CPU-bound):**
+### Scheduler Flexível ✓
 
-O `OpenCVPreprocessing` (denoise + equalização) é a operação mais pesada do DataLoader. Opções:
-- Mover para um dataset pré-processado offline (salvar versões denoised/equalizadas no disco)
-- Usar `torchvision.transforms.v2` com suporte nativo a GPU
-- Aumentar `num_workers` proporcional ao número de cores CPU
-
-**5. Grad-CAM espaçado:**
-
-Em vez de toda época, executar a cada N épocas (ex.: `if epoch % 5 == 0`). O `writer.add_image` já aceita qualquer step, não precisa ser sequencial.
-
-**6. Estimativa de Speedup:**
-
-| Configuração | 1 GPU | 2 GPUs | 4 GPUs |
-|---|---|---|---|
-| Baseline (atual) | 1x | — | — |
-| + AMP + workers | 1.8x | — | — |
-| + DDP + AMP + workers | — | 3.2x | 5.5x |
-
-*Estimativas conservadoras. O ganho real depende do modelo (VGG16 escala melhor que ViT/Swin em multi-GPU devido à comunicação entre GPUs).*
-
-### Scheduler Flexível
-
-O `SetupModel` atualmente cria `ReduceLROnPlateau` enquanto cada modelo específico (Vgg16, ResNet152, etc.) cria `StepLR` próprio que é descartado. Para permitir troca fácil de scheduler via CLI:
-
-```python
-# SetupModel.py
-SCHEDULERS = {
-    'plateau': lambda opt: optim.lr_scheduler.ReduceLROnPlateau(opt, mode='min', factor=0.1, patience=5),
-    'step':    lambda opt: optim.lr_scheduler.StepLR(opt, step_size=5, gamma=0.1),
-    'cosine':  lambda opt: optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs),
-}
-
-# main.py
-parser.add_argument('--scheduler', default='plateau', choices=['plateau', 'step', 'cosine'])
-```
+`SetupModel.SCHEDULERS` contém os 3 schedulers (`plateau`, `step`, `cosine`).
+A escolha é feita via Hydra: `training.scheduler=cosine`.
+Cada scheduler recebe os parâmetros corretos automaticamente:
+- `plateau` → `ReduceLROnPlateau(optimizer, mode='min', patience=5)`
+- `step` → `StepLR(optimizer, step_size=5, gamma=0.1)`
+- `cosine` → `CosineAnnealingLR(optimizer, T_max=epochs)`
 
 ### VSCode Configuration
 

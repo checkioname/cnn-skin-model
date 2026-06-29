@@ -26,33 +26,65 @@ class OpenCVPreprocessing:
 
 
 class ImageProcessing():
-    def __init__(self):
-        self.transforms = transforms.Compose([
-            OpenCVPreprocessing(),
-            transforms.RandomResizedCrop(512, scale=(0.3, 1.0)),
-            transforms.RandomRotation(50, fill=1),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
-            transforms.ColorJitter(brightness=0.2, contrast=0.3, saturation=0.1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+    def __init__(self, preprocessed_dir=None):
+        base = [
+            transforms.Resize(512),
+            transforms.CenterCrop(512),
+        ]
+
+        if preprocessed_dir:
+            self.train_transforms = transforms.Compose([
+                *base,
+                transforms.RandomRotation(50, fill=1),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
+                transforms.ColorJitter(brightness=0.2, contrast=0.3, saturation=0.1),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+
+            self.val_transforms = transforms.Compose([
+                *base,
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+            self.csv_path = 'dataset_preprocessed.csv'
+        else:
+            self.train_transforms = transforms.Compose([
+                OpenCVPreprocessing(),
+                *base,
+                transforms.RandomRotation(50, fill=1),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
+                transforms.ColorJitter(brightness=0.2, contrast=0.3, saturation=0.1),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+
+            self.val_transforms = transforms.Compose([
+                OpenCVPreprocessing(),
+                *base,
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+            self.csv_path = 'dataset.csv'
 
     def pre_processing(self, fold, batch_size, num_workers=4, rank=0, world_size=1):
-        self.generate_stratified_dataset(4, self.transforms)
+        self.generate_stratified_dataset(4, self.train_transforms)
         try:
             train_index, val_index = self._load_idx(fold)
         except FileNotFoundError as e:
             print(f"Erro ao carregar os índices de treino/validação: {e}")
             return None, None
 
-        custom_dataset = CustomDataset(csv_file='dataset.csv', transform=self.transforms)
-        print(f"TAMANHO DO DATASET: {len(custom_dataset.data)}")
+        train_dataset = CustomDataset(csv_file=self.csv_path, transform=self.train_transforms)
+        val_dataset = CustomDataset(csv_file=self.csv_path, transform=self.val_transforms)
+        print(f"TAMANHO DO DATASET: {len(train_dataset.data)}")
 
-        train_subset = Subset(custom_dataset, train_index)
-        val_subset = Subset(custom_dataset, val_index)
+        train_subset = Subset(train_dataset, train_index)
+        val_subset = Subset(val_dataset, val_index)
 
-        train_labels = [custom_dataset.labels[i] for i in train_index]
+        train_labels = [train_dataset.labels[i] for i in train_index]
         class_counts = {l: train_labels.count(l) for l in set(train_labels)}
         total_train = len(train_labels)
         weights = [total_train / (len(class_counts) * class_counts[l]) for l in train_labels]
@@ -73,12 +105,14 @@ class ImageProcessing():
         train_loader = DataLoader(
             train_subset, batch_size=batch_size,
             sampler=train_sampler, num_workers=num_workers,
-            pin_memory=True, prefetch_factor=4
+            pin_memory=True, prefetch_factor=4,
+            persistent_workers=num_workers > 0,
         )
         test_loader = DataLoader(
             val_subset, batch_size=batch_size,
             sampler=test_sampler, shuffle=test_sampler is None,
-            num_workers=num_workers, pin_memory=True
+            num_workers=num_workers, pin_memory=True,
+            prefetch_factor=4, persistent_workers=num_workers > 0,
         )
 
         return train_loader, test_loader
@@ -96,7 +130,7 @@ class ImageProcessing():
     def generate_stratified_dataset(self, num_folds, transforms) -> None:
         kf = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=42)
 
-        custom_dataset = CustomDataset(csv_file='dataset.csv', transform=transforms)
+        custom_dataset = CustomDataset(csv_file=self.csv_path, transform=transforms)
 
         df = custom_dataset.data.copy()
         df['patient_id'] = custom_dataset.patient_ids

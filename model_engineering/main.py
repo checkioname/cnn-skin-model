@@ -145,7 +145,10 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
         training.train(loss_fn, optimizer, device, epoch)
         test_loss = training.test(loss_fn, epoch, device)
         training.visualize_gradcam(epoch, device)
-        scheduler.step(test_loss)
+        if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            scheduler.step(test_loss)
+        else:
+            scheduler.step()
 
         if training.should_stop:
             print(f"Early stopping ativado na época {epoch + 1}")
@@ -213,7 +216,7 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
 def train_fold(cfg, fold, local_rank, world_size, runs_repo=None):
     device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
 
-    dataset = ImageProcessing()
+    dataset = ImageProcessing(preprocessed_dir=cfg.data.preprocessed_dir or None)
     train_loader, test_loader = dataset.pre_processing(
         fold=fold, batch_size=cfg.training.batch_size,
         num_workers=cfg.training.num_workers,
@@ -222,8 +225,14 @@ def train_fold(cfg, fold, local_rank, world_size, runs_repo=None):
 
     cam_sample = _prepare_cam_sample(test_loader) if is_main_process() else None
 
-    setup = SetupModel(cfg.model)
-    model, loss_fn, optimizer, scheduler = setup.setup_model(device)
+    setup = SetupModel(cfg.model, scheduler=cfg.training.scheduler)
+    model, loss_fn, optimizer, scheduler = setup.setup_model(
+        device, lr=cfg.training.lr, momentum=cfg.training.momentum,
+        weight_decay=cfg.training.weight_decay,
+        optimizer_name=cfg.training.optimizer,
+        scheduler_name=cfg.training.scheduler,
+        epochs=cfg.training.epochs,
+    )
 
     parallelism = "DDP" if world_size > 1 else ("DataParallel" if cfg.dp else "none")
     if cfg.dp and world_size == 1 and torch.cuda.device_count() > 1:

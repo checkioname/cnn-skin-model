@@ -10,6 +10,7 @@ training:
   momentum: 0.9
   weight_decay: 0.0
   optimizer: sgd
+  scheduler: plateau  # plateau, step, cosine
   patience: 7
   min_delta: 0.001
 
@@ -17,6 +18,7 @@ data:
   csv: dataset.csv
   folds: 4
   fold: 1
+  preprocessed_dir: ""  # se preenchido, usa imagens pré-processadas (pula OpenCV online)
 
 runs_repo:
   path: ""          # caminho para o repositório psoriasis-runs (vazio = local runs/)
