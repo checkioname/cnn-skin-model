@@ -34,10 +34,11 @@ class RunsRepo:
             return
 
         if not self.exists and remote_url:
+            self.repo_path.parent.mkdir(parents=True, exist_ok=True)
             self._run(["git", "clone", remote_url, str(self.repo_path)])
         elif not self.exists:
             self.repo_path.mkdir(parents=True, exist_ok=True)
-            self._run(["git", "init"], cwd=self.repo_path)
+            self._run(["git", "init"], cwd=str(self.repo_path))
 
         self._setup_lfs()
 
@@ -75,7 +76,7 @@ class RunsRepo:
     def _run(self, cmd, cwd=None, capture_output=False):
         try:
             result = subprocess.run(
-                cmd, cwd=cwd or self.repo_path,
+                cmd, cwd=str(cwd or self.repo_path),
                 capture_output=capture_output, text=True, check=True
             )
             return result.stdout if capture_output else ""
