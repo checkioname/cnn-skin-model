@@ -14,3 +14,14 @@ application/rag/model_weights.pth
 model_engineering/preview_output/
 model_engineering/heatmap.jpg
 model_engineering/relatorio_dataset.txt
+model_engineering/mlruns/
+model_engineering/optuna_*.db
+model_engineering/cross_validation_results.json
+model_engineering/metrics_fold_*.json
+model_engineering/optuna_best_*.json
+model_engineering/roc_curve.png
+model_engineering/captum_ig_*.png
+model_engineering/hydra_config.yaml
+model_engineering/.hydra/
+model_engineering/outputs/
+model_engineering/multirun/

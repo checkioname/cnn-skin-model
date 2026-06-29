@@ -85,22 +85,22 @@ def _prepare_cam_sample(test_loader):
     cv_img = cv2.imread(img_path)
     if cv_img is None:
         return None
-    pil_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+    cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+    h, w = cv_img.shape[:2]
+    crop = min(h, w)
+    y, x = (h - crop) // 2, (w - crop) // 2
+    cv_img = cv_img[y:y+crop, x:x+crop]
+    cv_img = cv2.resize(cv_img, (512, 512))
+    raw_np = cv_img.astype(np.float32) / 255.0
 
-    spatial = transforms.Compose([
-        transforms.Resize(512),
-        transforms.CenterCrop(512),
-    ])
-    cropped = spatial(pil_img)
-
-    processed = OpenCVPreprocessing()(cropped)
-    raw_np = np.array(processed).astype(np.float32) / 255.0
-
-    to_tensor = transforms.Compose([
+    fixed_transform = transforms.Compose([
+        OpenCVPreprocessing(),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
-    input_tensor = to_tensor(processed).unsqueeze(0)
+
+    pil_img = Image.fromarray(cv_img)
+    input_tensor = fixed_transform(pil_img).unsqueeze(0)
 
     return raw_np, input_tensor
 
