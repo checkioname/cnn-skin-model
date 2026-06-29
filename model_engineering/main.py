@@ -348,13 +348,25 @@ def main(cfg: DictConfig):
             print(f"{'='*40}\n")
 
             try:
-                subprocess.run(["git", "add", "-A"], cwd=results_dir_abs, capture_output=True)
-                subprocess.run(
+                subprocess.run(["git", "add", "-A"], cwd=results_dir_abs,
+                               capture_output=True, timeout=30)
+                result = subprocess.run(
                     ["git", "commit", "-m", f"feat: {cfg.model} fold {cfg.data.fold}"],
-                    cwd=results_dir_abs, capture_output=True,
+                    cwd=results_dir_abs, capture_output=True, timeout=30, text=True,
                 )
-            except Exception:
-                pass
+                if result.returncode == 0:
+                    push = subprocess.run(
+                        ["git", "push"], cwd=results_dir_abs,
+                        capture_output=True, timeout=60, text=True,
+                    )
+                    if push.returncode != 0:
+                        print(f"[AVISO] git push falhou: {push.stderr.strip()}")
+                        print(f"  Para fazer push manual:")
+                        print(f"  cd {results_dir_abs} && git push")
+                elif "nothing to commit" not in result.stdout:
+                    print(f"[AVISO] git commit falhou: {result.stderr.strip()}")
+            except Exception as e:
+                print(f"[AVISO] auto-commit/push: {e}")
 
     if dist.is_initialized():
         dist.destroy_process_group()
