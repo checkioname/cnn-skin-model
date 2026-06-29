@@ -257,7 +257,7 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
         print(f"  Specificity: {training.specificity:.4f}")
         print(f"  Kappa:       {training.kappa:.4f}")
         print(f"Resultados salvos em: {save_path}")
-        print(f"MLflow:  mlflow ui --port 5000 --backend-store-uri {results_dir}/mlflow")
+        print(f"MLflow:  mlflow ui --port 5000 --backend-store-uri sqlite:///{results_dir}/mlflow/mlflow.db")
         print(f"TB:      tensorboard --logdir {results_dir}/tensorboard")
         print(f"{'='*40}")
 
@@ -322,7 +322,7 @@ def main(cfg: DictConfig):
     os.makedirs(os.path.join(results_dir, "tensorboard"), exist_ok=True)
     os.makedirs(os.path.join(results_dir, "metrics"), exist_ok=True)
 
-    mlflow.set_tracking_uri(os.path.join(results_dir, "mlflow"))
+    mlflow.set_tracking_uri(f"sqlite:///{os.path.join(results_dir, 'mlflow', 'mlflow.db')}")
 
     mlflow.set_experiment(f"cnn-skin-{cfg.model}")
 
@@ -343,7 +343,7 @@ def main(cfg: DictConfig):
             print(f"\n{'='*40}")
             print(f"Fold {cfg.data.fold} concluido")
             print(f"Resultados salvos em: {results_dir_abs}")
-            print(f"MLflow:  mlflow ui --port 5000 --backend-store-uri {results_dir}/mlflow")
+            print(f"MLflow:  mlflow ui --port 5000 --backend-store-uri sqlite:///{results_dir}/mlflow/mlflow.db")
             print(f"TB:      tensorboard --logdir {results_dir}/tensorboard")
             print(f"{'='*40}\n")
 
