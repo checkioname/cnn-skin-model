@@ -12,22 +12,30 @@ def find_images(root_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Gera CSV a partir de diretório de imagens')
-    parser.add_argument('root_dir', help='Diretório raiz com subpastas dermatite/ e psoriasis/')
-    parser.add_argument('-o', '--output', default='dataset.csv', help='Arquivo CSV de saída')
+    parser = argparse.ArgumentParser(description='Gera CSV a partir de diretorio de imagens')
+    parser.add_argument('root_dir', help='Diretorio raiz com subpastas dermatite/ e psoriasis/')
+    parser.add_argument('-o', '--output', default='dataset.csv', help='Arquivo CSV de saida')
     args = parser.parse_args()
 
+    CLASS_MAP = {
+        'dermatite_atopica': 'dermatite',
+        'dermatite': 'dermatite',
+        'psoriase': 'psoriasis',
+        'psoriase_vulgar': 'psoriasis',
+        'psoriasis': 'psoriasis',
+    }
+
     root = os.path.abspath(args.root_dir)
-    classes = {'dermatite', 'psoriasis'}
     rows = []
 
     for rel_path in find_images(root):
         parts = rel_path.replace('\\', '/').split('/')
-        if parts[0] in classes:
-            rows.append({'img_name': rel_path.replace('\\', '/'), 'labels': parts[0]})
+        folder = parts[0]
+        if folder in CLASS_MAP:
+            rows.append({'img_name': rel_path.replace('\\', '/'), 'labels': CLASS_MAP[folder]})
 
     if not rows:
-        print(f"Nenhuma imagem encontrada em {root}")
+        print(f'Nenhuma imagem encontrada em {root}')
         return
 
     with open(args.output, 'w', newline='', encoding='utf-8') as f:
@@ -35,7 +43,7 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"CSV gerado: {args.output} ({len(rows)} amostras)")
+    print(f'CSV gerado: {args.output} ({len(rows)} amostras)')
 
 
 if __name__ == '__main__':
