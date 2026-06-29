@@ -60,8 +60,7 @@ class RunsRepo:
         path.mkdir(parents=True, exist_ok=True)
         return str(path)
 
-    def commit_push(self, message: str, push: bool = True):
-        """Faz commit e push automático dos resultados."""
+    def commit_push(self, message: str, push: bool = True, retries: int = 5):
         self._run(["git", "add", "-A"], cwd=self.repo_path)
 
         status = self._run(["git", "status", "--porcelain"], cwd=self.repo_path,
@@ -71,7 +70,18 @@ class RunsRepo:
 
         self._run(["git", "commit", "-m", message], cwd=self.repo_path)
         if push:
-            self._run(["git", "push"], cwd=self.repo_path)
+            import time
+            for attempt in range(retries):
+                self._run(["git", "pull", "--rebase"], cwd=self.repo_path)
+                try:
+                    subprocess.run(
+                        ["git", "push"], cwd=str(self.repo_path),
+                        capture_output=True, text=True, check=True
+                    )
+                    return
+                except subprocess.CalledProcessError:
+                    time.sleep(2 ** attempt)
+            print("[RunsRepo] Push falhou apos varias tentativas.")
 
     def _run(self, cmd, cwd=None, capture_output=False):
         try:
