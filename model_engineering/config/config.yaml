@@ -22,7 +22,7 @@ data:
 
 runs_repo:
   path: ""          # caminho para o repositório psoriasis-runs (vazio = local runs/)
-  remote: "git@github.com:checkioname/psoriasis-runs.git"
+  remote: "git@github.com:checkioname/cnn-skin-model-runs.git"
   auto_push: false  # faz git push automático ao final do treino
 
 seed: 42

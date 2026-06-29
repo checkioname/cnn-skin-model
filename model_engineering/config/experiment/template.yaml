@@ -25,7 +25,7 @@ data:
 
 runs_repo:
   path: ""                 # ex: "$HOME/psoriasis-runs"
-  remote: "git@github.com:checkioname/psoriasis-runs.git"
+  remote: "git@github.com:checkioname/cnn-skin-model-runs.git"
   auto_push: false
 
 seed: 42
