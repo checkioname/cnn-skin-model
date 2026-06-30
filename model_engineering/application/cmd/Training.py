@@ -11,6 +11,14 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
 
 
+def _format_eta(seconds: float) -> str:
+    if seconds >= 3600:
+        return f"{seconds/3600:.1f}h"
+    elif seconds >= 60:
+        return f"{seconds/60:.1f}min"
+    return f"{seconds:.0f}s"
+
+
 def _grid_to_figure(images, labels=None):
     import matplotlib
     matplotlib.use('Agg')
@@ -132,7 +140,7 @@ class Training():
                     eta_sec = (elapsed / batches_done) * (num_batches - batches_done)
                     t = epoch_timings[-1]
                     print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]  "
-                          f"ETA: {eta_sec:.0f}s  "
+                          f"ETA: {_format_eta(eta_sec)}  "
                           f"[data:{t['data_s']*1000:.0f}ms "
                           f"fwd:{t['forward_s']*1000:.0f}ms "
                           f"bwd:{t['backward_s']*1000:.0f}ms]")
