@@ -96,7 +96,7 @@ class Training():
             optimizer.zero_grad()
 
             t_fwd_start = time.time()
-            with autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=torch.cuda.is_available()):
+            with torch.cuda.amp.autocast(enabled=torch.cuda.is_available()):
                 pred = self.model(X)
                 pred = pred.squeeze(1)
                 loss = loss_fn(pred, y)
