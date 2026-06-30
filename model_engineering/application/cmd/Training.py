@@ -16,10 +16,8 @@ def _format_eta(seconds: float) -> str:
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
     if hours > 0:
-        return f"{hours}h{minutes:02d}m"
-    if minutes > 0:
-        return f"{minutes}m{secs:02d}s"
-    return f"{secs}s"
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
 
 
 def _grid_to_figure(images, labels=None):
