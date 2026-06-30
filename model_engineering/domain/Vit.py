@@ -14,8 +14,7 @@ class SetupModelViT:
             nn.Linear(num_features, 128),
             nn.SELU(),
             nn.Dropout(p=dropout_prob),
-            nn.Linear(128, 1),
-            nn.Sigmoid()
+            nn.Linear(128, 1)
         )
 
         model = vit.to(device)
