@@ -98,11 +98,19 @@ class SetupModel:
                 for param in layer.parameters():
                     param.requires_grad = True
             print(f"  Descongelados últimos {n} blocos ResNet")
-        elif self.model_name in ("vit", "swin"):
-            encoder = model.encoder.layers if hasattr(model, 'encoder') else model.layers
+        elif self.model_name == "vit":
+            encoder = model.encoder.layers
             total = len(encoder)
             n = unfreeze_blocks if unfreeze_blocks > 0 else total
             for layer in encoder[-n:]:
                 for param in layer.parameters():
                     param.requires_grad = True
-            print(f"  Descongelados últimos {n} blocos {self.model_name.upper()}")
+            print(f"  Descongelados últimos {n} blocos ViT")
+        elif self.model_name == "swin":
+            stages = model.features.features
+            total = len(stages)
+            n = unfreeze_blocks if unfreeze_blocks > 0 else total
+            for stage in stages[-n:]:
+                for param in stage.parameters():
+                    param.requires_grad = True
+            print(f"  Descongelados últimos {n} estágios Swin")
