@@ -15,7 +15,7 @@ class Hiperparameters():
     def setup_model(self, layers_config, device):
         model = NeuralNetwork(layers_config, device, dropout_prob=0.1).to(device)
         
-        loss_fn = nn.BCELoss()
+        loss_fn = nn.BCEWithLogitsLoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=self.learning_rate, momentum=self.momentum, weight_decay=self.weight_decay)
         scheduler = StepLR(optimizer, step_size=20, gamma=0.5)        
         # Registre detalhes no TensorBoard

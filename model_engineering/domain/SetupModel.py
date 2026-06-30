@@ -30,7 +30,7 @@ class SetupModel:
         scheduler_name = scheduler_name or self.scheduler_name
 
         model = self._initialize_model(device)
-        loss_fn = nn.BCELoss()
+        loss_fn = nn.BCEWithLogitsLoss()
 
         if optimizer_name in OPTIMIZERS:
             opt_fn = OPTIMIZERS[optimizer_name]

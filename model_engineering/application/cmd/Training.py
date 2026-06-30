@@ -202,13 +202,13 @@ class Training():
 
                 test_loss += loss_fn(pred, y).item()
 
-                accuracy_metric.update(pred, y)
-                precision_metric.update(pred, y)
-                recall_metric.update(pred, y)
-                f1_metric.update(pred, y)
+                accuracy_metric.update(prob, y)
+                precision_metric.update(prob, y)
+                recall_metric.update(prob, y)
+                f1_metric.update(prob, y)
                 auroc_metric.update(prob, y)
-                mcc_metric.update(pred, y)
-                specificity_metric.update(pred, y)
+                mcc_metric.update(prob, y)
+                specificity_metric.update(prob, y)
 
                 all_preds.extend((prob > 0.5).cpu().numpy().astype(int))
                 all_labels.extend(y.cpu().numpy().astype(int))
