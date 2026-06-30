@@ -8,11 +8,12 @@ training:
   num_workers: 4
   lr: 0.01
   momentum: 0.9
-  weight_decay: 0.0
-  optimizer: sgd
+  weight_decay: 0.0001
+  optimizer: sgd  # sgd, adam
   scheduler: plateau  # plateau, step, cosine
   patience: 7
   min_delta: 0.001
+  unfreeze_blocks: 0  # 0=frozen, 1=ultimo bloco, -1=todos
 
 data:
   csv: dataset.csv

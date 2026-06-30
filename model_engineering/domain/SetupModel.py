@@ -26,11 +26,14 @@ class SetupModel:
         self.dropout_prob = dropout_prob
         self.scheduler_name = scheduler
 
-    def setup_model(self, device, lr=0.01, momentum=0.9, weight_decay=0.0, optimizer_name='sgd', scheduler_name=None, epochs=50):
+    def setup_model(self, device, lr=0.01, momentum=0.9, weight_decay=0.0001, optimizer_name='sgd', scheduler_name=None, epochs=50, unfreeze_blocks=0):
         scheduler_name = scheduler_name or self.scheduler_name
 
         model = self._initialize_model(device)
         loss_fn = nn.BCEWithLogitsLoss()
+
+        if unfreeze_blocks != 0:
+            self._unfreeze_layers(model, unfreeze_blocks)
 
         if optimizer_name in OPTIMIZERS:
             opt_fn = OPTIMIZERS[optimizer_name]
@@ -73,3 +76,28 @@ class SetupModel:
             raise ValueError(f"Modelo '{self.model_name}' não suportado.")
 
         return model
+
+    def _unfreeze_layers(self, model, unfreeze_blocks):
+        if self.model_name == "vgg16":
+            total_blocks = 5
+            blocks = unfreeze_blocks if unfreeze_blocks > 0 else total_blocks
+            boundaries = [4, 9, 16, 23, 30]
+            start = boundaries[-blocks] - (blocks - 1) * 2 if blocks < total_blocks else 0
+            for param in model.features[start:].parameters():
+                param.requires_grad = True
+            print(f"  Descongelados últimos {blocks} blocos conv (features[{start}:30])")
+        elif self.model_name == "resnet152":
+            children = list(model.children())
+            n = unfreeze_blocks if unfreeze_blocks > 0 else len(children) - 2
+            for layer in children[-n-1:-1]:
+                for param in layer.parameters():
+                    param.requires_grad = True
+            print(f"  Descongelados últimos {n} blocos ResNet")
+        elif self.model_name in ("vit", "swin"):
+            encoder = model.encoder.layers if hasattr(model, 'encoder') else model.layers
+            total = len(encoder)
+            n = unfreeze_blocks if unfreeze_blocks > 0 else total
+            for layer in encoder[-n:]:
+                for param in layer.parameters():
+                    param.requires_grad = True
+            print(f"  Descongelados últimos {n} blocos {self.model_name.upper()}")
