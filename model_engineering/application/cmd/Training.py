@@ -12,11 +12,14 @@ from sklearn.metrics import confusion_matrix, cohen_kappa_score
 
 
 def _format_eta(seconds: float) -> str:
-    if seconds >= 3600:
-        return f"{seconds/3600:.1f}h"
-    elif seconds >= 60:
-        return f"{seconds/60:.1f}min"
-    return f"{seconds:.0f}s"
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    if hours > 0:
+        return f"{hours}h{minutes:02d}m"
+    if minutes > 0:
+        return f"{minutes}m{secs:02d}s"
+    return f"{secs}s"
 
 
 def _grid_to_figure(images, labels=None):
