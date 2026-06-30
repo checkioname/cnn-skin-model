@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import mlflow
+from tqdm import tqdm
 from torch.cuda.amp import autocast, GradScaler
 from application.callbacks.EarlyStopping import EarlyStopping
 from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC, MatthewsCorrCoef, Specificity
@@ -16,8 +17,10 @@ def _format_eta(seconds: float) -> str:
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
     if hours > 0:
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-    return f"{minutes:02d}:{secs:02d}"
+        return f"{hours}h{minutes:02d}m"
+    if minutes > 0:
+        return f"{minutes}m{secs:02d}s"
+    return f"{secs}s"
 
 
 def _grid_to_figure(images, labels=None):
@@ -93,10 +96,13 @@ class Training():
             self.trainloader.sampler.set_epoch(epoch)
 
         self._epoch_start = time.time()
-        num_batches = len(self.trainloader)
         epoch_timings = []
         last_batch_end = self._epoch_start
-        for batch, (X, y) in enumerate(self.trainloader):
+
+        pbar = tqdm(self.trainloader, desc=f"Epoch {epoch+1}",
+                    disable=self.rank != 0, unit="batch",
+                    bar_format="{l_bar}{bar:10}{r_bar}")
+        for batch, (X, y) in enumerate(pbar):
             t_data_end = time.time()
             data_s = t_data_end - last_batch_end
 
@@ -125,6 +131,9 @@ class Training():
 
             batch_time = t_bwd_end - t_data_end
             self.batch_times.append(batch_time)
+            t_data_ms = data_s * 1000
+            t_fwd_ms = (t_fwd_end - t_fwd_start) * 1000
+            t_bwd_ms = (t_bwd_end - t_bwd_start) * 1000
             epoch_timings.append({
                 'data_s': data_s,
                 'forward_s': t_fwd_end - t_fwd_start,
@@ -133,18 +142,12 @@ class Training():
             })
             last_batch_end = t_bwd_end
 
-            if self.rank == 0 and batch % 100 == 0:
-                current = batch * len(X) * self.world_size
-                elapsed = time.time() - self._epoch_start
-                batches_done = batch + 1
-                if batches_done > 0:
-                    eta_sec = (elapsed / batches_done) * (num_batches - batches_done)
-                    t = epoch_timings[-1]
-                    print(f"Loss: {loss.item():.7f}  [{current:>5d}/{size:>5d}]  "
-                          f"ETA: {_format_eta(eta_sec)}  "
-                          f"[data:{t['data_s']*1000:.0f}ms "
-                          f"fwd:{t['forward_s']*1000:.0f}ms "
-                          f"bwd:{t['backward_s']*1000:.0f}ms]")
+            pbar.set_postfix({
+                "loss": f"{loss.item():.4f}",
+                "data": f"{t_data_ms:.0f}ms",
+                "fwd": f"{t_fwd_ms:.0f}ms",
+                "bwd": f"{t_bwd_ms:.0f}ms",
+            })
         self.batch_timings.append(epoch_timings)
 
         epoch_time = time.time() - self._epoch_start
