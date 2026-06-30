@@ -1,0 +1,34 @@
+# Hydra multirun: testa 3 modelos com Adam + unfreeze + pos_weight
+# Uso: python main.py --multirun --config-dir config/sweep --config-name adam_vgg_swin_resnet
+defaults:
+  - override: /training
+  - _self_
+
+training:
+  epochs: 50
+  batch_size: 32
+  num_workers: 4
+  lr: 0.0001
+  weight_decay: 0.0001
+  optimizer: adam
+  scheduler: plateau
+  patience: 7
+  min_delta: 0.001
+  unfreeze_blocks: 2
+  pos_weight: 1.96
+
+data:
+  csv: dataset.csv
+  folds: 4
+  fold: 1
+  preprocessed_dir: preprocessed
+
+results_dir: ../cnn-skin-model-runs
+seed: 42
+dp: true
+
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      model: vgg16,swin,resnet152

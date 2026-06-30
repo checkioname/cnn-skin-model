@@ -26,9 +26,9 @@ results_dir: ../cnn-skin-model-runs  # tudo versionado via Git LFS: mlflow/, ten
 
 hydra:
   run:
-    dir: ${results_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: ${results_dir}/hydra/${model}/${now:%Y-%m-%d}/${now:%H-%M-%S}
   sweep:
-    dir: ${results_dir}/hydra/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: ${results_dir}/hydra/multirun/${model}/${now:%Y-%m-%d}/${now:%H-%M-%S}
   job_logging:
     root:
       handlers: [console, file]
