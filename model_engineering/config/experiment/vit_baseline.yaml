@@ -13,6 +13,8 @@ training:
   scheduler: cosine
   patience: 7
   min_delta: 0.001
+  unfreeze_blocks: 0
+  pos_weight: 0
 
 data:
   csv: dataset.csv

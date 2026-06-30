@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.optim as optim
 
@@ -26,11 +27,15 @@ class SetupModel:
         self.dropout_prob = dropout_prob
         self.scheduler_name = scheduler
 
-    def setup_model(self, device, lr=0.01, momentum=0.9, weight_decay=0.0001, optimizer_name='sgd', scheduler_name=None, epochs=50, unfreeze_blocks=0):
+    def setup_model(self, device, lr=0.01, momentum=0.9, weight_decay=0.0001, optimizer_name='sgd', scheduler_name=None, epochs=50, unfreeze_blocks=0, pos_weight=0):
         scheduler_name = scheduler_name or self.scheduler_name
 
         model = self._initialize_model(device)
-        loss_fn = nn.BCEWithLogitsLoss()
+        if pos_weight > 0:
+            loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight], device=device))
+            print(f"  pos_weight={pos_weight:.3f} aplicado ao BCEWithLogitsLoss")
+        else:
+            loss_fn = nn.BCEWithLogitsLoss()
 
         if unfreeze_blocks != 0:
             self._unfreeze_layers(model, unfreeze_blocks)

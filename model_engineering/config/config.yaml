@@ -14,6 +14,7 @@ training:
   patience: 7
   min_delta: 0.001
   unfreeze_blocks: 0  # 0=frozen, 1=ultimo bloco, -1=todos
+  pos_weight: 0  # 0=desativado, >0 pondera classe positiva (ex: 1.955 = psoríase/dermatite)
 
 data:
   csv: dataset.csv

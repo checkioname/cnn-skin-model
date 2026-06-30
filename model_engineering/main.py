@@ -294,6 +294,7 @@ def train_fold(cfg, fold, local_rank, world_size):
         scheduler_name=cfg.training.scheduler,
         epochs=cfg.training.epochs,
         unfreeze_blocks=cfg.training.unfreeze_blocks,
+        pos_weight=cfg.training.pos_weight,
     )
 
     parallelism = "DDP" if world_size > 1 else ("DataParallel" if cfg.dp else "none")
