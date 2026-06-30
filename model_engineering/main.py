@@ -166,7 +166,11 @@ def run_training(model, train_loader, test_loader, epochs, device, optimizer,
 
     if writer:
         dummy_input = torch.randn(1, 3, 512, 512).to(device)
-        writer.add_graph(model, dummy_input)
+        try:
+            graph_model = model.module if hasattr(model, 'module') else model
+            writer.add_graph(graph_model, dummy_input)
+        except Exception:
+            pass
         writer.add_text("Config/parallelism", parallelism)
         writer.add_text("Config/world_size", str(world_size))
         writer.add_text("Config/model", model_name)
