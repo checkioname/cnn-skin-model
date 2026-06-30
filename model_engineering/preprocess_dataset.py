@@ -32,6 +32,7 @@ def main():
 
     proc = OpenCVPreprocessing()
     new_paths = []
+    skipped = 0
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Preprocessing"):
         img_path = row[args.img_col]
@@ -40,13 +41,18 @@ def main():
             new_paths.append(img_path)
             continue
 
+        rel_path = os.path.relpath(img_path, start=os.path.dirname(args.csv) if os.path.isfile(args.csv) else ".")
+        out_path = os.path.join(args.outdir, rel_path)
+
+        if os.path.exists(out_path):
+            new_paths.append(out_path)
+            skipped += 1
+            continue
+
         img = Image.open(img_path).convert("RGB")
         processed = proc(img)
 
-        rel_path = os.path.relpath(img_path, start=os.path.dirname(args.csv) if os.path.isfile(args.csv) else ".")
-        out_path = os.path.join(args.outdir, rel_path)
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
-
         processed.save(out_path, quality=95)
         new_paths.append(out_path)
 
@@ -55,7 +61,7 @@ def main():
     out_csv = args.csv.replace(".csv", "_preprocessed.csv")
     df.to_csv(out_csv, index=False)
     print(f"CSV salvo em: {out_csv}")
-    print(f"{len(df)} imagens processadas em: {args.outdir}")
+    print(f"{len(df)} imagens ({skipped} ja existentes) processadas em: {args.outdir}")
 
 
 if __name__ == "__main__":
